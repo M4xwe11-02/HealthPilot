@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Dark mode — class strategy */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ── Jade / Emerald — primary accent ── */
+  --color-primary-50:  #ecfdf5;
+  --color-primary-100: #d1fae5;
+  --color-primary-200: #a7f3d0;
+  --color-primary-300: #6ee7b7;
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+  --color-primary-600: #059669;
+  --color-primary-700: #047857;
+  --color-primary-800: #065f46;
+  --color-primary-900: #064e3b;
+
+  /* ── Forest — dark-mode surfaces ── */
+  --color-forest-950: #030b08;
+  --color-forest-900: #071310;
+  --color-forest-800: #0d1e18;
+  --color-forest-700: #132a1f;
+  --color-forest-600: #1c3828;
+  --color-forest-500: #254e37;
+  --color-forest-400: #366652;
+  --color-forest-300: #4d8a6e;
+  --color-forest-200: #7dbaaa;
+  --color-forest-100: #b8ddd4;
+
+  /* ── Typography ── */
+  --font-display: 'Crimson Pro', 'Noto Serif SC', Georgia, serif;
+  --font-sans:    'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* ── Base ── */
+@layer base {
+  html, body, #root {
+    @apply h-full m-0 p-0;
+  }
+
+  body {
+    @apply antialiased;
+    font-family: 'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    @apply bg-slate-50 text-slate-900;
+    @apply dark:bg-forest-950 dark:text-slate-100;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+/* ── Components ── */
+@layer components {
+  /* Card — light: white / dark: forest-800 */
+  .dark-card {
+    @apply bg-white dark:bg-forest-800 rounded-2xl border border-slate-100 dark:border-forest-600;
+  }
+
+  /* Input */
+  .dark-input {
+    @apply bg-slate-50 dark:bg-forest-700 border border-slate-200 dark:border-forest-500
+           text-slate-900 dark:text-slate-100;
+  }
+
+  /* Text helpers */
+  .dark-text       { @apply text-slate-900 dark:text-slate-100; }
+  .dark-text-muted { @apply text-slate-500 dark:text-forest-200; }
+}
+
+/* ── Utilities ── */
+@layer utilities {
+  /* Fonts */
+  .font-display {
+    font-family: 'Crimson Pro', 'Noto Serif SC', Georgia, serif;
+  }
+  .font-mono-data {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  /* Scrollbar */
+  .scrollbar-thin::-webkit-scrollbar       { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 dark:bg-forest-600 rounded-full;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-300 dark:bg-forest-400;
+  }
+
+  /* Jade glow ring — used on logo pulse */
+  @keyframes jade-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
+    50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  }
+  .jade-pulse {
+    animation: jade-pulse 2.8s ease-in-out infinite;
+  }
+}

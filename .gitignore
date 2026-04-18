@@ -1,0 +1,34 @@
+# Gradle
+.gradle/
+build/
+app/build/
+app/bin/
+
+# IDE / local tools
+.idea/
+.vscode/
+.vs/
+/.claude/
+qodana.yaml
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Environment variables and secrets
+.env
+**/.env
+!**/.env.example
+app/src/main/resources/application-dev.yml
+
+# Runtime / generated files
+logs/
+*.log
+*.hprof
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+ 
+ 

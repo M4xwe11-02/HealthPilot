@@ -1,0 +1,224 @@
+services:
+  # =========================================
+  # 1. PostgreSQL 数据库服务
+  # -----------------------------------------
+  # 作用：
+  #   - 存储业务数据（用户、体检报告、健康分析等）
+  #   - 存储向量数据（基于 pgvector 插件），用于 RAG（检索增强生成）健康知识库检索
+  #
+  # 教程知识点：
+  #   - 选用 pgvector/pgvector 镜像而不是标准的 postgres 镜像，是为了获得向量搜索能力。
+  #   - 向量数据库是 LLM 应用开发中的核心基础设施。
+  # =========================================
+  postgres:
+    # 使用带有 pgvector 插件的 PostgreSQL 16 镜像
+    image: pgvector/pgvector:pg16
+    container_name: health-guardian-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-health_guardian}
+    volumes:
+      # 数据持久化：确保容器重启或删除后，数据库数据不丢失
+      - postgres_data:/var/lib/postgresql/data
+      # 初始化脚本：容器首次启动时会自动执行 /docker-entrypoint-initdb.d/ 下的 .sql 文件
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      # Host 5433 -> container 5432 to avoid conflicts with a local PostgreSQL.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    # 健康检查：
+    # 后端服务(app)需要等待数据库完全启动并准备好连接后才能启动。
+    # 这里通过 pg_isready 命令检测数据库状态。
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =========================================
+  # 2. Redis 缓存与消息队列服务
+  # -----------------------------------------
+  # 作用：
+  #   - 缓存：存储 Session、临时数据，提升系统性能
+  #   - 消息队列：利用 Redis Stream 实现异步任务处理（如体检报告分析、文档向量化）
+  #
+  # 教程知识点：
+  #   - 在轻量级架构中，Redis Stream 是 Kafka/RabbitMQ 的优秀替代方案，运维成本更低。
+  # =========================================
+  redis:
+    image: redis:7
+    container_name: health-guardian-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # =========================================
+  # 3. MinIO 对象存储服务（S3 兼容；也可以替换为外部 RustFS）
+  # -----------------------------------------
+  # 作用：
+  #   - 存储非结构化数据：用户上传的体检报告(PDF/Word)、知识库文档（药品说明书、健康指南）等
+  #
+  # 教程知识点：
+  #   - MinIO 兼容 AWS S3 协议；后端通过 S3 SDK 访问，因此也可以对接 RustFS 等 S3 兼容存储。
+  #   - 端口说明：
+  #     - 9000: API 端口，代码通过此端口上传/下载文件
+  #     - 9001: 控制台端口，浏览器访问此端口管理文件
+  # =========================================
+  minio:
+    image: minio/minio
+    container_name: health-guardian-minio
+    # 启动命令：指定数据目录和控制台地址
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${APP_STORAGE_ACCESS_KEY:-change-me-access-key}
+      MINIO_ROOT_PASSWORD: ${APP_STORAGE_SECRET_KEY:-change-me-secret-key}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # =========================================
+  # 4. MinIO 初始化任务 (Init Container Pattern)
+  # -----------------------------------------
+  # 作用：
+  #   - 自动创建项目所需的存储桶 (Bucket)
+  #   - 设置存储桶的访问权限
+  #
+  # 教程知识点：
+  #   - "初始化容器"模式：这是一个短生命周期的容器，任务完成后自动退出。
+  #   - 解决了"谁来创建 Bucket"的问题，实现了基础设施的自动化配置，无需手动操作。
+  # =========================================
+  createbuckets:
+    image: minio/mc
+    environment:
+      MINIO_ROOT_USER: ${APP_STORAGE_ACCESS_KEY:-change-me-access-key}
+      MINIO_ROOT_PASSWORD: ${APP_STORAGE_SECRET_KEY:-change-me-secret-key}
+      APP_STORAGE_BUCKET: ${APP_STORAGE_BUCKET:-health-guardian}
+    depends_on:
+      minio:
+        condition: service_healthy # 必须等待 MinIO 服务健康（不仅仅是启动）
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD";
+      /usr/bin/mc mb --ignore-existing myminio/"$$APP_STORAGE_BUCKET";
+      /usr/bin/mc anonymous set public myminio/"$$APP_STORAGE_BUCKET";
+      exit 0;
+      "
+
+  # =========================================
+  # 5. 后端应用服务 (Spring Boot)
+  # -----------------------------------------
+  # 作用：
+  #   - 提供 RESTful API
+  #   - 处理核心业务逻辑（体检报告分析、AI问诊、健康知识库RAG）
+  # =========================================
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    container_name: health-guardian-lightrag
+    env_file:
+      - path: ./lightrag/.env
+        required: false
+    environment:
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      HOST: 0.0.0.0
+      PORT: 9621
+    ports:
+      - "9621:9621"
+    volumes:
+      - lightrag_storage:/app/data/rag_storage
+      - lightrag_inputs:/app/data/inputs
+
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: health-guardian-app
+    # 依赖管理：确保基础设施准备好后再启动后端
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully # 等待初始化任务完成
+    environment:
+      # === 数据库连接 ===
+      # 使用服务名 'postgres' 作为主机名，Docker 内部 DNS 会自动解析
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-health_guardian}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+
+      # === Redis 连接 ===
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # === 对象存储配置 ===
+      # 注意：后端在容器内访问 compose 自带的 MinIO，使用 http://minio:9000。
+      # 如果本地 bootRun 对接外部 RustFS，请在启动后端时使用 APP_STORAGE_ENDPOINT=http://localhost:9000。
+      APP_STORAGE_ENDPOINT: http://minio:9000
+      APP_STORAGE_ACCESS_KEY: ${APP_STORAGE_ACCESS_KEY:-change-me-access-key}
+      APP_STORAGE_SECRET_KEY: ${APP_STORAGE_SECRET_KEY:-change-me-secret-key}
+      APP_STORAGE_BUCKET: ${APP_STORAGE_BUCKET:-health-guardian}
+      APP_STORAGE_REGION: ${APP_STORAGE_REGION:-us-east-1}
+
+      # === AI 模型配置 (必须配置) ===
+      # 这里的变量值来自宿主机的环境变量或 .env 文件
+      AI_BAILIAN_API_KEY: ${AI_BAILIAN_API_KEY}
+      AI_MODEL: ${AI_MODEL:-qwen-plus}
+
+      # === 问诊参数配置 ===
+      APP_CONSULTATION_FOLLOW_UP_COUNT: ${APP_CONSULTATION_FOLLOW_UP_COUNT:-1}
+      APP_CONSULTATION_EVALUATION_BATCH_SIZE: ${APP_CONSULTATION_EVALUATION_BATCH_SIZE:-8}
+
+      # === LightRAG HTTP 服务（可选） ===
+      APP_LIGHTRAG_ENABLED: ${APP_LIGHTRAG_ENABLED:-false}
+      APP_LIGHTRAG_BASE_URL: ${APP_LIGHTRAG_DOCKER_BASE_URL:-http://lightrag:9621}
+      APP_LIGHTRAG_API_KEY: ${APP_LIGHTRAG_API_KEY:-}
+      APP_LIGHTRAG_MODE: ${APP_LIGHTRAG_MODE:-mix}
+    ports:
+      - "8081:8081"
+
+  # =========================================
+  # 6. 前端应用服务 (Vue/React + Nginx)
+  # -----------------------------------------
+  # 作用：
+  #   - 提供用户界面
+  #   - 反向代理 API 请求（通常在 Nginx 配置中处理）
+  # =========================================
+  frontend:
+    build: ./frontend
+    container_name: health-guardian-frontend
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+
+# =========================================
+# 定义 Docker 卷 (Volumes)
+# -----------------------------------------
+# 作用：声明命名卷，用于数据持久化。
+# 即使删除了容器 (docker-compose down)，这些卷中的数据依然存在。
+# =========================================
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  lightrag_storage:
+  lightrag_inputs:

@@ -1,0 +1,75 @@
+Copyright (c) 2025 bravoya (bravoya233@gmail.com)
+
+All rights reserved.
+
+                     NON-COMMERCIAL SOURCE AVAILABLE LICENSE
+
+1. DEFINITIONS
+
+   "Software" means the source code, object code, documentation, configuration
+   files, and all other materials contained in this repository.
+
+   "Non-Commercial Use" means personal, educational, or academic use solely for
+   purposes that do not generate revenue, monetary compensation, or commercial
+   advantage of any kind for you or any third party.
+
+   "Commercial Use" means any use of the Software, in whole or in part, that
+   is intended for or results in commercial advantage or monetary compensation,
+   including but not limited to: selling, licensing, renting, or offering the
+   Software or a derivative work as a product or service; integrating the
+   Software into a commercial product or SaaS platform; or using the Software
+   to provide paid consulting, development, or operational services.
+
+2. GRANT OF LICENSE
+
+   Subject to the terms of this License, the copyright holder grants you a
+   limited, non-exclusive, non-transferable, revocable license to:
+
+   (a) view, download, and study the Software for Non-Commercial Use only;
+   (b) fork and modify the Software for Non-Commercial Use only, provided that
+       any derivative work carries this same License and copyright notice.
+
+3. RESTRICTIONS
+
+   You may NOT, without prior written permission from the copyright holder:
+
+   (a) use the Software or any derivative work for Commercial Use;
+   (b) redistribute, publish, or make the Software or any derivative work
+       publicly available in any form other than a fork of this repository;
+   (c) sublicense, sell, rent, lease, or transfer the Software or any rights
+       granted herein to any third party;
+   (d) remove, alter, or obscure any copyright, trademark, or other proprietary
+       notices contained in the Software;
+   (e) use the name, trademarks, or branding of this project or its contributors
+       to endorse or promote products derived from this Software without prior
+       written consent.
+
+4. COMMERCIAL LICENSING
+
+   If you wish to use the Software for Commercial Use, you must obtain a
+   separate written commercial license agreement from the copyright holder.
+
+   Contact: bravoya233@gmail.com
+
+5. CONTRIBUTIONS
+
+   By submitting a pull request or otherwise contributing to this repository,
+   you agree that your contribution is made under this same License and that
+   the copyright holder retains the right to use your contribution under any
+   license, including commercial licenses, without further obligation to you.
+
+6. DISCLAIMER OF WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL
+   THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+   OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+7. TERMINATION
+
+   This License is automatically terminated if you violate any of its terms.
+   Upon termination, you must immediately cease all use of the Software and
+   destroy all copies in your possession.
