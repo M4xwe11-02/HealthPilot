@@ -1,5 +1,5 @@
 # 项目演示视频
-https://www.bilibili.com/video/BV1BYd9BREZa/?share_source=copy_web&vd_source=3ca0ef37fbaa8515fb2e86b92bcce510
+【HealthPilot v0.1 项目演示】 https://www.bilibili.com/video/BV1BYd9BREZa/?share_source=copy_web&vd_source=3ca0ef37fbaa8515fb2e86b92bcce510
 ---
 # HealthPilot V0.1
 Spring Boot + React + PostgreSQL/pgvector + Redis + MinIO + LightRAG 的 AI 健康管理平台。
