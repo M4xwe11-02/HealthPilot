@@ -4,6 +4,17 @@ https://www.bilibili.com/video/BV1BYd9BREZa/?share_source=copy_web&vd_source=3ca
 # HealthGuard V0.1
 Spring Boot + React + PostgreSQL/pgvector + Redis + MinIO + LightRAG 的 AI 健康管理平台。
 
+## 项目亮点
+
+- 利用 MQ 机制解耦请求与处理，结合 Consumer Group 实现水平扩展，并支持最多三次自 动重试与任务状态全链路追踪保障用户体验与任务可靠性。
+- 构建双引擎 RAG 问答质量保障机制：内置引擎基于 Spring AI + pgvector HNSW 索引，结 合 QueryRewrite、 动态 topK 与相似度阈值（依查询长度自适应切换检索参数）、知识库前置元 数据过滤、短 Query 命中校验与 流式探针检测，降低误召回与无依据回答风险；同时接入 LightRAG 作为可替换的图增强检索引擎，支持用户 自由切换问答链路，兼顾召回质量与灵活 性。
+- 支持多维度个性化组合限流，低侵入式接入核心接口，并配置优雅降级方法，保障系统在高 并发场景下的稳定性与可用性。
+- 配合自定义文本清洗管道（HTML 去除、空白归一化、换行标准化），通过 SHA-256 内容 哈希实现跨知识库去重复用， 避免冗余向量化与 AI 调用；向量化采用 DashScope 1024 维 Embedding，分批写入 pgvector，支持多用户 知识库元数据隔离检索。 
+- 基于 Java 21 虚拟线程全面提升 I/O 密集型场景吞吐量，结合 Project Reactor Flux 实现 SSE 流式输出， 支持 LLM 答案逐字推送至前端，并通过 doOnNext/takeWhile 算子实现流的早期终止 与资源回收， 避免无效 Token 消耗，提升长连接场景下的响应流畅度。
+- 设计 S3 兼容的对象存储抽象层，统一对接 MinIO（开发）与 RustFS（生产），文件 Key 采 用 日期分层 + UUID 命名，文件名通过 pinyin4j 将中文转拼音后清洗特殊字符，保障跨平台兼容 性； 上传、下载、删除、大小探测全链路封装，业务层零感知底层存储实现。
+- 实现 Token 级安全认证机制：使用 SecureRandom 生成 32 字节随机令牌，Base64 URL Safe 编码后 对外暴露，存储前经 SHA-256 哈希处理，结合用户维度的数据库查询过滤，防止越 权访问与 Token 枚举攻击， 保障多用户数据隔离。
+- 公共查询接口均引入 Redis 缓存层，大幅提升高并发下的查询性能，提升系统吞吐， Cache-Aside策略保证不频繁更新的公共文档的数据一致性。
+
 ## 端口
 
 | 服务 | 地址 |
