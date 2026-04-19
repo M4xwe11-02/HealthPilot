@@ -1,4 +1,4 @@
-# HealthGuard
+# HealthGuard V0.1
 
 Spring Boot + React + PostgreSQL/pgvector + Redis + MinIO + LightRAG 的 AI 健康管理平台。
 
