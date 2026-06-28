@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:8081';
 
 // 向量化状态
 export type VectorStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type LightRagStatus = 'NOT_SUBMITTED' | 'SUBMITTING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNKNOWN';
 
 export interface KnowledgeBaseItem {
   id: number;
@@ -19,6 +20,8 @@ export interface KnowledgeBaseItem {
   questionCount: number;
   vectorStatus: VectorStatus;
   vectorError: string | null;
+  lightRagStatus: LightRagStatus | string | null;
+  lightRagError: string | null;
   chunkCount: number;
 }
 

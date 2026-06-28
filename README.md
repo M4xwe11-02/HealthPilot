@@ -152,11 +152,14 @@ LLM_BINDING_API_KEY=your_bailian_api_key_here
 EMBEDDING_BINDING_API_KEY=your_bailian_api_key_here
 ```
 
+The root `.env` enables the backend-to-LightRAG integration by default through
+`APP_LIGHTRAG_ENABLED=true` and `APP_LIGHTRAG_BASE_URL=http://localhost:9621`.
+
 ### Launch Infrastructure
 
 ```bash
 docker compose up -d postgres redis minio createbuckets lightrag
-docker compose ps   # verify all services are "running"
+docker compose ps
 ```
 
 ### Start Backend
@@ -185,7 +188,7 @@ corepack pnpm --dir frontend install
 corepack pnpm --dir frontend dev -- --host 0.0.0.0 --port 5173 --strictPort
 ```
 
-Open **http://localhost:5173**. Default admin credentials are set in the database seed — see `.env.example` for details.
+Open **http://localhost:5173**. The development admin account is initialized as `admin` / `admin`.
 
 ---
 
@@ -208,9 +211,30 @@ Open **http://localhost:5173**. Default admin credentials are set in the databas
 | File | Purpose |
 |:-----|:--------|
 | `.env` | Main project config — used by local backend and Docker Compose |
-| `lightrag/.env` | LightRAG container config — read only by the LightRAG service |
+| `lightrag/.env` | LightRAG model and embedding provider config |
 
-*Both `.env` files are git-ignored. Never commit secrets to version control.*
+| Variable | Required | Purpose |
+|:---------|:---------|:--------|
+| `AI_BAILIAN_API_KEY` | Yes | Backend LLM and embedding access |
+| `APP_LIGHTRAG_ENABLED` | For graph RAG | Enables LightRAG-backed retrieval |
+| `APP_LIGHTRAG_BASE_URL` | For graph RAG | Backend URL for the LightRAG HTTP service |
+| `LLM_BINDING_API_KEY` | For LightRAG | LightRAG LLM provider key |
+| `EMBEDDING_BINDING_API_KEY` | For LightRAG | LightRAG embedding provider key |
+
+Both `.env` files are git-ignored. Never commit secrets to version control.
+
+### Diagnostics
+
+Use these checks to verify the local runtime:
+
+```bash
+docker compose ps
+docker compose logs -f lightrag
+curl http://localhost:9621/
+curl http://localhost:8081/api/auth/me
+```
+
+Expected signals: LightRAG returns a redirect to `/webui/`; the backend auth probe returns a JSON `401` response when unauthenticated.
 
 ---
 
