@@ -158,6 +158,11 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
   };
 
   const handleToggleKb = (kbId: number) => {
+    const kb = knowledgeBases.find(item => item.id === kbId);
+    if (ragProvider === 'LIGHTRAG' && kb && !isLightRagReady(kb)) {
+      return;
+    }
+
     setSelectedKbIds(prev => {
       const newSet = new Set(prev);
       if (newSet.has(kbId)) {
@@ -185,6 +190,14 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
       return;
     }
     setRagProvider(provider);
+    if (provider === 'LIGHTRAG') {
+      setSelectedKbIds(prev => new Set(
+        Array.from(prev).filter(id => {
+          const kb = knowledgeBases.find(item => item.id === id);
+          return kb ? isLightRagReady(kb) : false;
+        })
+      ));
+    }
     handleNewSession();
   };
 
@@ -351,6 +364,24 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const isLightRagReady = (kb: KnowledgeBaseItem): boolean => kb.lightRagStatus === 'COMPLETED';
+
+  const getLightRagStatusText = (kb: KnowledgeBaseItem): string => {
+    switch (kb.lightRagStatus) {
+      case 'COMPLETED':
+        return '图谱就绪';
+      case 'FAILED':
+        return '图谱失败';
+      case 'PROCESSING':
+      case 'SUBMITTING':
+        return '图谱处理中';
+      case 'NOT_SUBMITTED':
+        return '未入图谱';
+      default:
+        return '图谱状态未知';
+    }
   };
 
   const formatTimeAgo = (dateStr: string): string => {
@@ -762,7 +793,10 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                                     <div
                                       key={kb.id}
                                       onClick={() => handleToggleKb(kb.id)}
-                                      className={`p-2 rounded-lg cursor-pointer transition-all ${selectedKbIds.has(kb.id)
+                                      className={`p-2 rounded-lg transition-all ${
+                                        ragProvider === 'LIGHTRAG' && !isLightRagReady(kb)
+                                          ? 'cursor-not-allowed opacity-60 bg-slate-50 dark:bg-forest-700/30 border border-transparent'
+                                          : selectedKbIds.has(kb.id)
                                           ? 'bg-primary-50 dark:bg-primary-900/30 border border-primary-500'
                                           : 'bg-white dark:bg-forest-700/50 hover:bg-slate-50 dark:hover:bg-forest-700 border border-transparent'
                                         }`}
@@ -773,12 +807,16 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                                           checked={selectedKbIds.has(kb.id)}
                                           onChange={() => handleToggleKb(kb.id)}
                                           onClick={(e) => e.stopPropagation()}
+                                          disabled={ragProvider === 'LIGHTRAG' && !isLightRagReady(kb)}
                                           className="w-3.5 h-3.5 text-primary-500 rounded focus:ring-primary-500"
                                         />
                                         <span
                                             className="font-medium text-slate-800 dark:text-white text-xs truncate flex-1">{kb.name}</span>
                                       </div>
-                                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 ml-5">{formatFileSize(kb.fileSize)}</p>
+                                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 ml-5">
+                                        {formatFileSize(kb.fileSize)}
+                                        {ragProvider === 'LIGHTRAG' && ` · ${getLightRagStatusText(kb)}`}
+                                      </p>
                                     </div>
                                   ))}
                                 </div>

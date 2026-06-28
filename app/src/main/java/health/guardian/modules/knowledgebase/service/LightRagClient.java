@@ -148,6 +148,69 @@ public class LightRagClient {
         }
     }
 
+    public LightRagTrackStatus getTrackStatus(String trackId) {
+        ensureEnabled();
+        if (trackId == null || trackId.isBlank()) {
+            return new LightRagTrackStatus("UNKNOWN", null);
+        }
+
+        try {
+            HttpRequest request = buildJsonGet("/documents/track_status/" + trackId.trim());
+            HttpResponse<String> response = httpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+            );
+            ensureSuccess(response.statusCode(), response.body());
+
+            Map<String, Object> body = objectMapper.readValue(response.body(), MAP_TYPE);
+            Object documents = body.get("documents");
+            if (!(documents instanceof Iterable<?> docs)) {
+                return new LightRagTrackStatus("UNKNOWN", null);
+            }
+
+            boolean hasDocument = false;
+            boolean allCompleted = true;
+            boolean anyFailed = false;
+            String firstStatus = null;
+            String error = null;
+
+            for (Object doc : docs) {
+                if (!(doc instanceof Map<?, ?> docMap)) {
+                    continue;
+                }
+                hasDocument = true;
+                String status = stringValue(docMap.get("status"));
+                if (firstStatus == null) {
+                    firstStatus = status;
+                }
+                String normalized = normalizeTrackStatus(status);
+                if ("FAILED".equals(normalized)) {
+                    anyFailed = true;
+                    error = stringValue(docMap.get("error_msg"));
+                }
+                if (!"COMPLETED".equals(normalized)) {
+                    allCompleted = false;
+                }
+            }
+
+            if (!hasDocument) {
+                return new LightRagTrackStatus("UNKNOWN", null);
+            }
+            if (anyFailed) {
+                return new LightRagTrackStatus("FAILED", error);
+            }
+            if (allCompleted) {
+                return new LightRagTrackStatus("COMPLETED", null);
+            }
+            return new LightRagTrackStatus(normalizeTrackStatus(firstStatus), null);
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "LightRAG 状态响应解析失败: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "LightRAG 状态请求被中断");
+        }
+    }
+
     private Map<String, Object> buildQueryPayload(String question) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("query", question);
@@ -164,6 +227,18 @@ public class LightRagClient {
             .timeout(nullToDefault(properties.getRequestTimeout(), Duration.ofMinutes(3)))
             .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
             .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
+
+        if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
+            builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
+        }
+        return builder.build();
+    }
+
+    private HttpRequest buildJsonGet(String path) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+            .uri(URI.create(buildUrl(path)))
+            .timeout(nullToDefault(properties.getRequestTimeout(), Duration.ofMinutes(3)))
+            .GET();
 
         if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
             builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
@@ -222,9 +297,28 @@ public class LightRagClient {
         return value == null ? null : value.toString();
     }
 
+    private static String normalizeTrackStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "UNKNOWN";
+        }
+        String normalized = status.trim().toUpperCase();
+        if (normalized.contains(".")) {
+            normalized = normalized.substring(normalized.lastIndexOf('.') + 1);
+        }
+        return switch (normalized) {
+            case "PROCESSED", "COMPLETED", "SUCCESS" -> "COMPLETED";
+            case "FAILED", "ERROR" -> "FAILED";
+            case "PENDING", "PROCESSING", "PREPROCESSED", "SUBMITTED", "SUBMITTING" -> "PROCESSING";
+            default -> normalized;
+        };
+    }
+
     public record LightRagQueryResult(String response) {
     }
 
     public record LightRagInsertResult(String status, String message, String trackId) {
+    }
+
+    public record LightRagTrackStatus(String status, String error) {
     }
 }
