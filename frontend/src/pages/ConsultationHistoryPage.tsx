@@ -313,7 +313,7 @@ export default function ConsultationHistoryPage({ onBack: _onBack, onViewConsult
         subtitle="查看和管理所有 AI 健康问诊记录"
         action={
           <motion.div
-            className="flex items-center gap-3 bg-white dark:bg-forest-800 border border-slate-200 dark:border-forest-600 rounded-xl px-4 py-2.5 min-w-[260px] focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 dark:focus-within:ring-primary-900/30 transition-all"
+            className="flex items-center gap-3 bg-white dark:bg-forest-800 border border-slate-200 dark:border-forest-600 rounded-xl px-4 py-2.5 min-w-[220px] sm:min-w-[260px] focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 dark:focus-within:ring-primary-900/30 transition-all"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
@@ -377,12 +377,12 @@ export default function ConsultationHistoryPage({ onBack: _onBack, onViewConsult
       {/* 表格 */}
       {!loading && filteredConsultations.length > 0 && (
         <motion.div
-            className="bg-white dark:bg-forest-800 rounded-2xl shadow-sm border border-slate-100 dark:border-forest-600 overflow-hidden min-h-[340px]"
+            className="bg-white dark:bg-forest-800 rounded-2xl shadow-sm border border-slate-100 dark:border-forest-600 overflow-x-auto min-h-[340px] scrollbar-thin"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <table className="w-full">
+          <table className="w-full min-w-[820px]">
               <thead className="bg-slate-50 dark:bg-forest-700/40 border-b border-slate-100 dark:border-forest-600">
               <tr>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 dark:text-forest-200 uppercase tracking-wide">关联报告</th>

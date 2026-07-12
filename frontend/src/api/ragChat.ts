@@ -160,7 +160,7 @@ export const ragChatApi = {
       const extractEventContent = (event: string): string | null => {
         if (!event.trim()) return null;
 
-        const lines = event.split('\n');
+        const lines = event.split(/\r?\n/);
         const contentParts: string[] = [];
 
         for (const line of lines) {
@@ -179,13 +179,33 @@ export const ragChatApi = {
           .replace(/\\r/g, '\r');
       };
 
+      const drainCompleteEvents = () => {
+        // SSE permits both LF and CRLF. Drain every complete event already in
+        // the buffer; processing only one event per reader.read() leaves the
+        // rest buffered until the response closes and makes streaming appear
+        // as one large final update.
+        let separatorMatch = /\r?\n\r?\n/.exec(buffer);
+        while (separatorMatch?.index !== undefined) {
+          const eventBlock = buffer.slice(0, separatorMatch.index);
+          buffer = buffer.slice(separatorMatch.index + separatorMatch[0].length);
+
+          const content = extractEventContent(eventBlock);
+          if (content !== null) {
+            onMessage(content);
+          }
+          separatorMatch = /\r?\n\r?\n/.exec(buffer);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
+          buffer += decoder.decode();
+          drainCompleteEvents();
           if (buffer) {
             const content = extractEventContent(buffer);
-            if (content) {
+            if (content !== null) {
               onMessage(content);
             }
           }
@@ -194,31 +214,7 @@ export const ragChatApi = {
         }
 
         buffer += decoder.decode(value, { stream: true });
-
-        // SSE 事件以 \n\n 分隔，但也需要处理单行的情况
-        let newlineIndex = buffer.indexOf('\n\n');
-        if (newlineIndex === -1) {
-          // 如果没有找到 \n\n，尝试处理单行 data: 格式
-          const singleLineIndex = buffer.indexOf('\n');
-          if (singleLineIndex !== -1 && buffer.substring(0, singleLineIndex).startsWith('data:')) {
-            const line = buffer.substring(0, singleLineIndex);
-            const content = extractEventContent(line);
-            if (content) {
-              onMessage(content);
-            }
-            buffer = buffer.substring(singleLineIndex + 1);
-          }
-          continue;
-        }
-
-        // 处理完整的事件块
-        const eventBlock = buffer.substring(0, newlineIndex);
-        buffer = buffer.substring(newlineIndex + 2);
-
-        const content = extractEventContent(eventBlock);
-        if (content !== null) {
-          onMessage(content);
-        }
+        drainCompleteEvents();
       }
     } catch (error) {
       onError(new Error(getErrorMessage(error)));

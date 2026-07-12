@@ -412,7 +412,7 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
 
       {/* 知识库列表 */}
         <div
-            className="bg-white dark:bg-forest-800 rounded-2xl shadow-sm border border-slate-100 dark:border-forest-600 overflow-hidden min-h-[340px]">
+            className="bg-white dark:bg-forest-800 rounded-2xl shadow-sm border border-slate-100 dark:border-forest-600 overflow-x-auto min-h-[340px] scrollbar-thin">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
@@ -429,7 +429,7 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
             </button>
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[860px]">
               <thead className="bg-slate-50 dark:bg-forest-700/40 border-b border-slate-100 dark:border-forest-600">
               <tr>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 dark:text-forest-200 uppercase tracking-wide">

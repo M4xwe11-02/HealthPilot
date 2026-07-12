@@ -9,7 +9,7 @@ import {formatDateOnly} from '../utils/date';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import CodeBlock from '../components/CodeBlock';
 import PageHeader from '../components/PageHeader';
-import {ChevronLeft, ChevronRight, Edit, MessageSquare, Pin, Plus, Trash2,} from 'lucide-react';
+import {ChevronLeft, ChevronRight, Database, Edit, History, LoaderCircle, MessageSquare, Pin, Plus, Trash2,} from 'lucide-react';
 
 interface KnowledgeBaseQueryPageProps {
   onBack: () => void;
@@ -29,6 +29,8 @@ interface CategoryGroup {
   isExpanded: boolean;
 }
 
+type MobilePanel = 'chat' | 'sessions' | 'sources';
+
 export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBaseQueryPageProps) {
   // 知识库状态
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
@@ -42,6 +44,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
 
   // 右侧面板状态
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>('chat');
 
   // 会话状态
   const [sessions, setSessions] = useState<RagChatSessionListItem[]>([]);
@@ -67,6 +70,12 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
   useEffect(() => {
     loadKnowledgeBases();
     loadSessions();
+
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -183,6 +192,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
     setCurrentSessionId(null);
     setCurrentSessionTitle('');
     setMessages([]);
+    setMobilePanel('chat');
   };
 
   const handleChangeRagProvider = (provider: RagProvider) => {
@@ -213,6 +223,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         content: m.content,
         timestamp: new Date(m.createdAt),
       })));
+      setMobilePanel('chat');
     } catch (err) {
       console.error('加载会话失败', err);
     }
@@ -344,6 +355,11 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
           });
         },
         () => {
+          if (rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = undefined;
+          }
+          updateAssistantMessage(fullContent);
           setLoading(false);
           loadSessions();
         },
@@ -450,9 +466,39 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         }
       />
 
+      <div className="xl:hidden flex-shrink-0 grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-forest-800 border border-slate-200/70 dark:border-forest-600">
+        {([
+          {value: 'chat' as const, label: '问答', icon: MessageSquare},
+          {value: 'sessions' as const, label: '历史', icon: History},
+          {value: 'sources' as const, label: '知识库', icon: Database},
+        ]).map(item => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => {
+              setMobilePanel(item.value);
+              if (item.value === 'sources') setRightPanelOpen(true);
+            }}
+            className={`flex items-center justify-center gap-1.5 min-h-10 rounded-lg text-xs font-medium transition-colors ${
+              mobilePanel === item.value
+                ? 'bg-white dark:bg-forest-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-slate-500 dark:text-forest-200'
+            }`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
+            {item.value === 'sources' && selectedKbIds.size > 0 && (
+              <span className="min-w-4 h-4 px-1 rounded-full bg-primary-500 text-white text-[9px] leading-4">
+                {selectedKbIds.size}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 min-h-0 flex gap-4">
         {/* 左侧：对话历史 */}
-        <div className="w-64 flex-shrink-0">
+        <div className={`${mobilePanel === 'sessions' ? 'block w-full' : 'hidden'} xl:block xl:w-64 flex-shrink-0`}>
           <div
               className="bg-white dark:bg-forest-800 rounded-2xl p-4 shadow-sm h-full flex flex-col border border-slate-100 dark:border-forest-600">
             <div className="flex items-center justify-between mb-4">
@@ -547,7 +593,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         </div>
 
         {/* 中间：聊天区域 */}
-        <div className="flex-1 min-w-0">
+        <div className={`${mobilePanel === 'chat' ? 'block' : 'hidden'} xl:block flex-1 min-w-0`}>
           <div
               className="bg-white dark:bg-forest-800 rounded-2xl shadow-sm flex flex-col h-full border border-slate-100 dark:border-forest-600">
             {selectedKbIds.size > 0 ? (
@@ -635,7 +681,18 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                                     {formatMarkdown(msg.content)}
                                   </ReactMarkdown>
                                   {loading && index === messages.length - 1 && (
-                                    <span className="inline-block w-0.5 h-5 bg-primary-500 ml-1 animate-pulse" />
+                                    <div
+                                      className={`flex items-center gap-2 text-primary-600 dark:text-primary-400 ${
+                                        msg.content ? 'mt-3' : ''
+                                      }`}
+                                      role="status"
+                                      aria-live="polite"
+                                    >
+                                      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                      <span className="text-xs font-medium tracking-wide">
+                                        {msg.content ? '正在继续生成…' : '正在检索知识库…'}
+                                      </span>
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -677,7 +734,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                   <svg className="w-12 h-12 mx-auto mb-3 opacity-50" viewBox="0 0 24 24" fill="none">
                     <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <p className="text-sm">请先在右侧选择健康知识库</p>
+                  <p className="text-sm">请先在“知识库”面板选择资料</p>
                 </div>
               </div>
             )}
@@ -688,19 +745,19 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         <AnimatePresence>
           {rightPanelOpen && (
             <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 280, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex-shrink-0 overflow-hidden"
+              className={`${mobilePanel === 'sources' ? 'block w-full' : 'hidden'} xl:block xl:w-[280px] flex-shrink-0 overflow-hidden`}
             >
               <div
-                  className="bg-white dark:bg-forest-800 rounded-2xl p-4 shadow-sm h-full flex flex-col w-[280px] border border-slate-100 dark:border-forest-600">
+                  className="bg-white dark:bg-forest-800 rounded-2xl p-4 shadow-sm h-full flex flex-col w-full xl:w-[280px] border border-slate-100 dark:border-forest-600">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-semibold text-slate-800 dark:text-white">选择知识库</h2>
                   <button
                     onClick={() => setRightPanelOpen(false)}
-                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
+                    className="hidden xl:block p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -837,7 +894,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         {!rightPanelOpen && (
           <button
             onClick={() => setRightPanelOpen(true)}
-            className="flex-shrink-0 w-10 bg-white dark:bg-forest-800 rounded-2xl shadow-sm border border-slate-100 dark:border-forest-600 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-forest-700 transition-colors"
+            className="hidden xl:flex flex-shrink-0 w-10 bg-white dark:bg-forest-800 rounded-2xl shadow-sm border border-slate-100 dark:border-forest-600 items-center justify-center hover:bg-slate-50 dark:hover:bg-forest-700 transition-colors"
             title="展开知识库面板"
           >
             <ChevronRight className="w-5 h-5 text-slate-400" />

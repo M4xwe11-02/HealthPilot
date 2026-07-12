@@ -48,6 +48,11 @@
     @apply dark:bg-forest-950 dark:text-slate-100;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+
   #root {
     @apply min-h-screen;
   }
@@ -89,6 +94,17 @@
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-300 dark:bg-forest-400;
+  }
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* Jade glow ring — used on logo pulse */

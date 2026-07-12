@@ -232,8 +232,8 @@ export default function HealthReportDetailPage({ healthReportId, onBack, onStart
       className="w-full"
     >
       {/* 顶部导航栏 */}
-      <div className="flex justify-between items-center mb-5 flex-wrap gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between items-center mb-5 flex-wrap gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
           <motion.button
             onClick={detailView === 'consultationDetail' ? handleBackToConsultationList : onBack}
             className="w-10 h-10 bg-white dark:bg-forest-800 rounded-xl flex items-center justify-center
@@ -246,7 +246,7 @@ export default function HealthReportDetailPage({ healthReportId, onBack, onStart
           >
             <ChevronLeft className="w-5 h-5" />
           </motion.button>
-          <div>
+          <div className="min-w-0">
             {/* Label above */}
             <div className="flex items-center gap-2 mb-[3px]">
               <span
@@ -258,7 +258,7 @@ export default function HealthReportDetailPage({ healthReportId, onBack, onStart
               <div className="h-px w-8 bg-gradient-to-r from-primary-400/40 to-transparent" />
               <div className="w-[4px] h-[4px] rotate-45 bg-primary-400 shadow-[0_0_4px_rgba(52,211,153,0.7)]" />
             </div>
-            <h2 className="font-display font-bold text-[1.3rem] text-slate-900 dark:text-white leading-none tracking-tight">
+            <h2 className="font-display font-bold text-[1.15rem] sm:text-[1.3rem] text-slate-900 dark:text-white leading-tight tracking-tight truncate">
               {detailView === 'consultationDetail' ? `问诊详情 #${selectedConsultation?.sessionId?.slice(-6) || ''}` : healthReport.filename}
             </h2>
             <p className="text-[12px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
@@ -271,7 +271,7 @@ export default function HealthReportDetailPage({ healthReportId, onBack, onStart
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full sm:w-auto overflow-x-auto scrollbar-none pb-1 sm:pb-0">
           {detailView === 'consultationDetail' && selectedConsultation && (
             <motion.button
               onClick={() => handleExportInterviewPdf(selectedConsultation?.sessionId)}
@@ -300,12 +300,12 @@ export default function HealthReportDetailPage({ healthReportId, onBack, onStart
 
       {/* 标签页切换 - 仅在非问诊详情时显示 */}
       {detailView !== 'consultationDetail' && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 mb-4 inline-flex gap-1">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 mb-4 flex sm:inline-flex gap-1 overflow-x-auto scrollbar-none">
           {tabs.map((tab) => (
             <motion.button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`relative px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors
+              className={`relative px-4 sm:px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors flex-shrink-0
                 ${activeTab === tab.id ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}

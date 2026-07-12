@@ -3,10 +3,12 @@ package health.guardian.modules.knowledgebase;
 import health.guardian.common.result.Result;
 import health.guardian.modules.knowledgebase.model.RagChatDTO.*;
 import health.guardian.modules.knowledgebase.service.RagChatSessionService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -101,7 +103,11 @@ public class RagChatController {
                  produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> sendMessageStream(
             @PathVariable Long sessionId,
-            @Valid @RequestBody SendMessageRequest request) {
+            @Valid @RequestBody SendMessageRequest request,
+            HttpServletResponse response) {
+
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-transform");
+        response.setHeader("X-Accel-Buffering", "no");
 
         log.info("收到 RAG 聊天流式请求: sessionId={}, question={}, 线程: {} (虚拟线程: {})",
             sessionId, request.question(), Thread.currentThread(), Thread.currentThread().isVirtual());

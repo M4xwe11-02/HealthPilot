@@ -28,7 +28,7 @@ export default function PageHeader({
 }: PageHeaderProps) {
   return (
     <motion.div
-      className={`flex items-start justify-between gap-6 mb-5 flex-wrap ${className}`}
+      className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6 mb-3 sm:mb-5 ${className}`}
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -54,9 +54,8 @@ export default function PageHeader({
 
         {/* Main title */}
         <h1
-          className="font-display font-bold text-slate-900 dark:text-white
+          className="font-display font-bold text-[1.65rem] sm:text-[2rem] text-slate-900 dark:text-white
             leading-none tracking-tight"
-          style={{ fontSize: '2rem' }}
         >
           {title}
         </h1>
@@ -71,7 +70,7 @@ export default function PageHeader({
 
       {/* ── Right-side action ── */}
       {action && (
-        <div className="flex items-center gap-2.5 flex-shrink-0 mt-1">
+        <div className="w-full sm:w-auto flex items-center gap-2.5 flex-shrink-0 sm:mt-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           {action}
         </div>
       )}
