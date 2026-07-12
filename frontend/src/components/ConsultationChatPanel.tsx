@@ -53,10 +53,10 @@ export default function ConsultationChatPanel({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-160px)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100dvh-13rem)] min-h-[480px] xl:h-[calc(100vh-160px)] max-w-4xl mx-auto">
       {/* 进度条 */}
         <div
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-4 shadow-sm dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700">
+            className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 mb-3 sm:mb-4 shadow-sm dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             问题 {currentQuestion ? currentQuestion.questionIndex + 1 : 0} / {session.totalQuestions}
@@ -85,15 +85,15 @@ export default function ConsultationChatPanel({
           followOutput="smooth"
           className="flex-1"
           itemContent={(_index, msg) => (
-            <div className="pb-4 px-6 first:pt-6">
+            <div className="pb-4 px-3 sm:px-6 first:pt-4 sm:first:pt-6">
               <MessageBubble message={msg} />
             </div>
           )}
         />
 
         {/* 输入区域 */}
-            <div className="border-t border-slate-200 dark:border-slate-600 p-4 bg-slate-50 dark:bg-slate-700/50">
-          <div className="flex gap-3">
+            <div className="border-t border-slate-200 dark:border-slate-600 p-3 sm:p-4 bg-slate-50 dark:bg-slate-700/50">
+          <div className="flex flex-col sm:flex-row gap-3">
             <textarea
               value={answer}
               onChange={(e) => onAnswerChange(e.target.value)}
@@ -103,11 +103,11 @@ export default function ConsultationChatPanel({
               rows={3}
               disabled={isSubmitting}
             />
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-col gap-2">
               <motion.button
                 onClick={onSubmit}
                 disabled={!answer.trim() || isSubmitting}
-                className="px-6 py-3 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="min-h-11 px-4 sm:px-6 py-3 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 whileHover={{ scale: isSubmitting || !answer.trim() ? 1 : 1.02 }}
                 whileTap={{ scale: isSubmitting || !answer.trim() ? 1 : 0.98 }}
               >
@@ -130,7 +130,7 @@ export default function ConsultationChatPanel({
               <motion.button
                 onClick={() => onShowCompleteConfirm(true)}
                 disabled={isSubmitting}
-                className="px-6 py-3 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-medium hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="min-h-11 px-4 sm:px-6 py-3 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-medium hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
                 whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
               >
@@ -157,7 +157,7 @@ function MessageBubble({ message }: { message: Message }) {
               className="w-8 h-8 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-primary-600 dark:text-primary-400"/>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">AI 医生</span>
             {message.category && (

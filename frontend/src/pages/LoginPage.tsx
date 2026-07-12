@@ -79,10 +79,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-forest-950 font-sans">
+    <div className="min-h-dvh flex bg-forest-950 font-sans">
 
       {/* ── Left panel ── */}
-      <section className="hidden lg:flex w-[46%] min-h-screen flex-col justify-between relative overflow-hidden
+      <section className="hidden lg:flex w-[46%] min-h-dvh flex-col justify-between relative overflow-hidden
         bg-gradient-to-br from-forest-900 via-forest-800 to-forest-950
         shadow-2xl after:content-[''] after:absolute after:top-0 after:right-0 after:w-[1px] after:h-full after:bg-gradient-to-b after:from-transparent after:via-forest-700/50 after:to-transparent">
 
@@ -200,8 +200,8 @@ export default function LoginPage() {
       </section>
 
       {/* ── Right panel — form ── */}
-      <main className="flex-1 min-h-screen flex items-center justify-center
-        bg-slate-50 dark:bg-forest-950 px-4 sm:px-8 py-12 relative overflow-hidden">
+      <main className="flex-1 min-h-dvh flex items-center justify-center
+        bg-slate-50 dark:bg-forest-950 px-3 sm:px-8 py-5 sm:py-12 relative overflow-hidden">
         
         {/* Subtle background glow for right side */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-primary-400/5 dark:bg-primary-900/20 rounded-full blur-[120px] pointer-events-none" />
@@ -211,10 +211,10 @@ export default function LoginPage() {
           initial={{opacity: 0, scale: 0.96, y: 10}}
           animate={{opacity: 1, scale: 1, y: 0}}
           transition={{duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98]}}
-          className="w-full max-w-[480px] bg-white dark:bg-forest-900/80 p-8 sm:p-12 rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-100 dark:border-forest-700 relative z-10 backdrop-blur-2xl"
+          className="w-full max-w-[480px] bg-white dark:bg-forest-900/80 p-5 sm:p-12 rounded-[1.75rem] sm:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-100 dark:border-forest-700 relative z-10 backdrop-blur-2xl"
         >
           {/* Mobile brand (hidden on lg+) */}
-          <div className="flex lg:hidden items-start gap-4 mb-10">
+          <div className="flex lg:hidden items-start gap-4 mb-6 sm:mb-10">
             <div className="mt-[3px] flex-shrink-0">
               <LogoMark size={42} animate={false} />
             </div>
@@ -246,16 +246,16 @@ export default function LoginPage() {
           </div>
 
           {/* Heading with Heartbeat */}
-          <div className="mb-10 flex items-center gap-4">
+          <div className="mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4">
             <motion.div
               animate={{ scale: [1, 1.15, 1, 1.15, 1] }}
               transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
-              className="w-14 h-14 rounded-2xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 shadow-inner"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 shadow-inner flex-shrink-0"
             >
               <Activity className="w-7 h-7" />
             </motion.div>
             <div>
-              <h1 className="text-[2rem] font-extrabold text-primary-600 dark:text-primary-400 tracking-tight leading-none">
+              <h1 className="text-[1.65rem] sm:text-[2rem] font-extrabold text-primary-600 dark:text-primary-400 tracking-tight leading-none">
                 {mode === 'login' ? '欢迎回来' : '加入我们'}
               </h1>
               <p className="text-slate-500 dark:text-forest-300 mt-2 text-sm font-medium">
@@ -265,7 +265,7 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
 
             <label className="block">
               <span className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">用户名</span>

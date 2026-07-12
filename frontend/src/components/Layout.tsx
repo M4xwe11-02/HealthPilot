@@ -92,13 +92,12 @@ export default function Layout() {
 
   return (
     <div
-      className="h-dvh overflow-hidden flex flex-col relative"
+      className="app-shell h-dvh overflow-hidden flex flex-col relative"
       style={{
         backgroundImage: `url(${bgImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed',
       }}
     >
       {/* Dimming overlay — lightens in light mode, darkens in dark mode */}

@@ -102,7 +102,7 @@ export default function FileUploadCard({
     <motion.div
       className={showHeader
         ? "h-full flex flex-col items-center justify-center py-4 px-2"
-        : "flex flex-col gap-4 py-5 px-6"}
+        : "flex flex-col gap-3 sm:gap-4 py-3 px-3 sm:py-5 sm:px-6"}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -150,9 +150,8 @@ export default function FileUploadCard({
 
         {/* ── Drop zone ── */}
         <motion.div
-          className={`relative bg-white dark:bg-forest-800 rounded-2xl p-7 cursor-pointer transition-all duration-300
+          className={`relative bg-white dark:bg-forest-800 rounded-2xl p-5 sm:p-7 cursor-pointer transition-all duration-300 min-h-[260px] sm:min-h-[190px]
             ${dragOver ? 'scale-[1.015] shadow-xl' : 'shadow-lg hover:shadow-xl dark:shadow-black/30'}`}
-          style={{ minHeight: '190px' }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -207,10 +206,9 @@ export default function FileUploadCard({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="flex items-center justify-center h-full"
-                style={{ minHeight: '130px' }}
+                className="flex items-center justify-center h-full min-h-[218px] sm:min-h-[130px]"
               >
-                <div className="flex items-center gap-5 bg-slate-50 dark:bg-forest-700/50 px-6 py-4 rounded-xl border border-slate-100 dark:border-forest-600 w-full max-w-sm mx-auto">
+                <div className="flex items-center gap-3 sm:gap-5 bg-slate-50 dark:bg-forest-700/50 px-4 sm:px-6 py-4 rounded-xl border border-slate-100 dark:border-forest-600 w-full max-w-sm mx-auto">
                   <div className="w-12 h-12 flex-shrink-0 bg-primary-100 dark:bg-primary-900/50 rounded-xl flex items-center justify-center">
                     <FileText className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                   </div>
@@ -236,12 +234,11 @@ export default function FileUploadCard({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center gap-5"
-                style={{ minHeight: '130px' }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5 min-h-[218px] sm:min-h-[130px]"
               >
                 {/* Icon */}
                 <motion.div
-                  className={`w-14 h-14 flex-shrink-0 rounded-xl flex items-center justify-center transition-colors
+                  className={`w-14 h-14 flex-shrink-0 rounded-2xl flex items-center justify-center transition-colors
                     ${dragOver
                       ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
                       : 'bg-slate-100 dark:bg-forest-700 text-slate-400 dark:text-slate-500'}`}
@@ -251,18 +248,18 @@ export default function FileUploadCard({
                 </motion.div>
 
                 {/* Text */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">
+                <div className="w-full sm:flex-1 sm:min-w-0 text-center sm:text-left">
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1 whitespace-normal">
                     点击或拖拽文件至此处
                   </h3>
-                  <p className="text-[13px] text-slate-400 dark:text-slate-500">
+                  <p className="text-xs sm:text-[13px] text-slate-400 dark:text-slate-500 whitespace-normal">
                     {formatHint} · {maxSizeHint}
                   </p>
                 </div>
 
                 {/* CTA button */}
                 <motion.button
-                  className="flex-shrink-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-primary-500/25 hover:shadow-lg hover:shadow-primary-500/35 transition-all"
+                  className="w-full sm:w-auto flex-shrink-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-5 py-3 sm:py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-primary-500/25 hover:shadow-lg hover:shadow-primary-500/35 transition-all"
                   whileHover={{ scale: 1.03, y: -1 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={(e) => {
@@ -313,7 +310,7 @@ export default function FileUploadCard({
         </AnimatePresence>
 
         {/* ── Action buttons ── */}
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-3 justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
           {onBack && (
             <motion.button
               onClick={onBack}

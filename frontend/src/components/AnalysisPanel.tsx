@@ -145,7 +145,7 @@ export default function AnalysisPanel({
   if (isProcessing) {
     const isExplicitProcessing = analyzeStatus === 'PROCESSING';
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-12 text-center">
           <div
               className="w-16 h-16 mx-auto mb-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
           {isExplicitProcessing ? (
@@ -170,7 +170,7 @@ export default function AnalysisPanel({
   // 处理分析失败状态
   if (analyzeStatus === 'FAILED' || !isAnalysisValid) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-12 text-center">
           <div
               className="w-16 h-16 mx-auto mb-6 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400"/>
@@ -211,12 +211,12 @@ export default function AnalysisPanel({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 核心评价 */}
         <motion.div
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6"
+            className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
               <TrendingUp className="w-5 h-5" />
               <span className="font-semibold">核心评价</span>
@@ -234,12 +234,12 @@ export default function AnalysisPanel({
           </div>
 
           <div
-              className="bg-gradient-to-br from-emerald-50 dark:from-emerald-900/30 to-green-50 dark:to-slate-800 rounded-xl p-6">
+              className="bg-gradient-to-br from-emerald-50 dark:from-emerald-900/30 to-green-50 dark:to-slate-800 rounded-xl p-4 sm:p-6">
             <p className="text-lg text-slate-800 dark:text-white leading-relaxed mb-6">
               {analysis.summary || '整体健康状况良好，部分指标需要关注和改善。'}
             </p>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
               <div className="bg-white dark:bg-slate-800 rounded-xl p-5">
                 <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 block mb-2">健康总分</span>
                 <span className="text-4xl font-bold text-slate-900 dark:text-white">{analysis.overallScore || 0}</span>
@@ -274,7 +274,7 @@ export default function AnalysisPanel({
 
         {/* 多维度评分雷达图 */}
         <motion.div
-            className="bg-white dark:bg-slate-800 rounded-2xl p-6"
+            className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -287,14 +287,14 @@ export default function AnalysisPanel({
           <RadarChart data={radarData} height={320} />
 
           {/* 维度得分详情 */}
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <ScoreProgressBar
               label="生活方式"
               score={lifestyleScore}
               maxScore={40}
               color="bg-purple-500"
               delay={0.3}
-              className="col-span-2"
+              className="sm:col-span-2"
             />
             <ScoreProgressBar
               label="营养状况"
@@ -330,7 +330,7 @@ export default function AnalysisPanel({
 
       {/* 健康管理建议 - 按优先级分类 */}
       <motion.div
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}

@@ -171,7 +171,7 @@ function AdminPublicDocsContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="rounded-2xl border border-slate-200 dark:border-forest-700
-          bg-white/80 dark:bg-forest-800/80 backdrop-blur-sm shadow-sm p-6"
+          bg-white/80 dark:bg-forest-800/80 backdrop-blur-sm shadow-sm p-4 sm:p-6"
       >
         <h2 className="font-display font-semibold text-[15px] text-slate-800 dark:text-white mb-4 flex items-center gap-2">
           <Upload className="w-4 h-4 text-primary-500" />上传新文档
@@ -244,7 +244,7 @@ function AdminPublicDocsContent() {
                   transition-all"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-[12px] font-medium text-slate-600 dark:text-forest-300 mb-1 block">分类</label>
                 <input
@@ -334,7 +334,7 @@ function AdminPublicDocsContent() {
         className="rounded-2xl border border-slate-200 dark:border-forest-700
           bg-white/80 dark:bg-forest-800/80 backdrop-blur-sm shadow-sm overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-forest-700
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 dark:border-forest-700
           flex items-center justify-between">
           <h2 className="font-display font-semibold text-[15px] text-slate-800 dark:text-white flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary-500" />
@@ -364,8 +364,8 @@ function AdminPublicDocsContent() {
             <p className="text-[13px] text-slate-400 dark:text-forest-300">暂无文档，请上传第一份文件</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full min-w-[760px] text-[13px]">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-forest-700">
                   {['标题', '分类', '来源', 'AI 状态', '下载量', '上传时间', '操作'].map(h => (

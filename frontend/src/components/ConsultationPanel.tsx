@@ -68,7 +68,7 @@ export default function ConsultationPanel({
 
   if (consultations.length === 0) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-12 text-center">
           <div
               className="w-16 h-16 mx-auto mb-6 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
           <Mic className="w-8 h-8 text-slate-400" />
@@ -92,7 +92,7 @@ export default function ConsultationPanel({
       {/* 问诊健康评分趋势图 */}
       {chartData.length > 0 && (
           <motion.div
-              className="bg-white dark:bg-slate-800 rounded-2xl p-6"
+              className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -145,7 +145,7 @@ export default function ConsultationPanel({
 
       {/* 历史问诊场次 */}
       <motion.div
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
@@ -226,10 +226,10 @@ function ConsultationItemCard({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.1 }}
       onClick={onView}
-      className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-colors group"
+      className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-colors group"
     >
       {/* 得分 */}
-      <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg ${
+      <div className={`w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-lg ${
         consultation.overallScore !== null 
           ? getScoreColor(consultation.overallScore, [85, 70])
             : 'bg-slate-100 dark:bg-slate-600 text-slate-400'
@@ -242,7 +242,7 @@ function ConsultationItemCard({
         <p className="font-medium text-slate-800 dark:text-white truncate">
           AI 问诊 #{total - index}
         </p>
-        <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
           <span className="flex items-center gap-1">
             <Calendar className="w-4 h-4" />
             {formatDateOnly(consultation.createdAt)}
@@ -255,7 +255,7 @@ function ConsultationItemCard({
       </div>
 
       {/* 操作按钮 */}
-      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+      <div className="flex items-center gap-1 sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
       {/* 导出按钮 */}
       <motion.button
         onClick={(e) => { e.stopPropagation(); onExport(); }}
@@ -288,7 +288,7 @@ function ConsultationItemCard({
 
       {/* 箭头 */}
       <ChevronRight
-          className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-primary-500 group-hover:translate-x-1 transition-all flex-shrink-0"/>
+          className="hidden sm:block w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-primary-500 group-hover:translate-x-1 transition-all flex-shrink-0"/>
     </motion.div>
   );
 }

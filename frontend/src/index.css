@@ -41,6 +41,11 @@
     @apply h-full m-0 p-0;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply antialiased;
     font-family: 'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
@@ -90,13 +95,22 @@
   .scrollbar-thin::-webkit-scrollbar       { width: 4px; height: 4px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 dark:bg-forest-600 rounded-full;
+    background-color: #e2e8f0;
+    border-radius: 9999px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-300 dark:bg-forest-400;
+    background-color: #cbd5e1;
   }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #1c3828; }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: #366652; }
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  .app-shell { background-attachment: scroll; }
+
+  @media (min-width: 1280px) {
+    .app-shell { background-attachment: fixed; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

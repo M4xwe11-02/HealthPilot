@@ -42,7 +42,7 @@ export default function ConsultationDetailPanel({ consultation }: ConsultationDe
 
   return (
       <motion.div
-      className="space-y-6"
+      className="space-y-4 sm:space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -90,7 +90,7 @@ function ScoreCard({
   strokeDashoffset: number;
 }) {
   return (
-    <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 rounded-2xl p-8 text-white">
+    <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 rounded-2xl p-5 sm:p-8 text-white">
       <div className="flex flex-col items-center text-center">
         {/* 圆环进度条 */}
         <div className="relative w-32 h-32 mb-6">
@@ -143,7 +143,7 @@ function ScoreCard({
 function StrengthsSection({ strengths }: { strengths: string[] }) {
   return (
       <motion.div
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
@@ -171,7 +171,7 @@ function StrengthsSection({ strengths }: { strengths: string[] }) {
 function ImprovementsSection({ improvements }: { improvements: string[] }) {
   return (
       <motion.div
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
@@ -251,10 +251,10 @@ function QuestionCard({
     >
       {/* 问题头部 */}
         <div
-            className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            className="px-4 sm:px-5 py-4 flex items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
         onClick={onToggle}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
           <span
               className="w-8 h-8 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center text-sm font-semibold">
             {answer.questionIndex + 1}
@@ -279,7 +279,7 @@ function QuestionCard({
       </div>
 
       {/* 问题内容 */}
-      <div className="px-5 pb-2">
+      <div className="px-4 sm:px-5 pb-2">
         <p className="text-slate-800 dark:text-white font-medium leading-relaxed">{answer.question}</p>
       </div>
 
@@ -293,7 +293,7 @@ function QuestionCard({
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 space-y-4">
+            <div className="px-4 sm:px-5 pb-5 space-y-4">
               {/* 你的回答 */}
               <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4">
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">

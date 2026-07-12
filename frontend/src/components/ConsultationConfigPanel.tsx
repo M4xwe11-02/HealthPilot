@@ -40,8 +40,8 @@ export default function ConsultationConfigPanel({
       animate={{ opacity: 1, y: 0 }}
     >
           <div
-              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+              className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-5 sm:mb-6 flex items-center gap-3">
                   <div
                       className="w-10 h-10 bg-primary-100 dark:bg-primary-900/50 rounded-xl flex items-center justify-center">
                       <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" viewBox="0 0 24 24" fill="none">
@@ -78,7 +78,7 @@ export default function ConsultationConfigPanel({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 border-2 border-amber-200 dark:border-amber-800 rounded-xl"
+              className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 border-2 border-amber-200 dark:border-amber-800 rounded-xl"
             >
               <div className="flex items-start gap-3 mb-4">
                   <div
@@ -96,7 +96,7 @@ export default function ConsultationConfigPanel({
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <motion.button
                   onClick={onContinueUnfinished}
                   className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors"
@@ -123,12 +123,12 @@ export default function ConsultationConfigPanel({
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
               问题数量（AI会进行追问，实际问题数量会超过设置问题数量）
             </label>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
               {questionCounts.map((count) => (
                 <motion.button
                   key={count}
                   onClick={() => onQuestionCountChange(count)}
-                  className={`px-4 py-3 rounded-xl font-medium transition-all ${
+                  className={`min-w-0 px-1 sm:px-4 py-3 rounded-xl font-medium transition-all ${
                     questionCount === count
                       ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -169,10 +169,10 @@ export default function ConsultationConfigPanel({
             )}
           </AnimatePresence>
 
-            <div className="flex justify-center gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:justify-center sm:gap-4">
                 <motion.button
               onClick={onBack}
-              className="px-6 py-3 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+              className="min-h-12 px-3 sm:px-6 py-3 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -181,7 +181,7 @@ export default function ConsultationConfigPanel({
             <motion.button
               onClick={onStart}
               disabled={isCreating}
-              className="px-8 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold shadow-lg shadow-primary-500/30 hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              className="min-h-12 px-3 sm:px-8 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold shadow-lg shadow-primary-500/30 hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               whileHover={{ scale: isCreating ? 1 : 1.02, y: isCreating ? 0 : -1 }}
               whileTap={{ scale: isCreating ? 1 : 0.98 }}
             >

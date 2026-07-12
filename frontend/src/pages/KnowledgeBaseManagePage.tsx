@@ -354,9 +354,9 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
       {/* 搜索和筛选栏 */}
         <div
             className="bg-white dark:bg-forest-800 rounded-2xl p-3 shadow-sm border border-slate-100 dark:border-forest-600 mb-4">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4">
           {/* 搜索框 */}
-          <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">
+          <form onSubmit={handleSearch} className="col-span-2 sm:flex-1 sm:min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -370,7 +370,7 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
           </form>
 
           {/* 排序选择 */}
-          <div className="relative">
+          <div className="relative min-w-0">
             <select
               value={sortBy}
               onChange={(e) => {
@@ -378,7 +378,7 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
                 setSearchKeyword('');
                 setSelectedCategory(null);
               }}
-              className="appearance-none pl-4 pr-10 py-2 border border-slate-200 dark:border-forest-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white dark:bg-forest-700 text-slate-900 dark:text-white cursor-pointer"
+              className="w-full appearance-none pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 border border-slate-200 dark:border-forest-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white dark:bg-forest-700 text-slate-900 dark:text-white cursor-pointer text-sm"
             >
               <option value="time">按时间排序</option>
               <option value="size">按大小排序</option>
@@ -389,14 +389,14 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
           </div>
 
           {/* 分类筛选 */}
-          <div className="relative">
+          <div className="relative min-w-0">
             <select
               value={selectedCategory || ''}
               onChange={(e) => {
                 setSelectedCategory(e.target.value || null);
                 setSearchKeyword('');
               }}
-              className="appearance-none pl-4 pr-10 py-2 border border-slate-200 dark:border-forest-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white dark:bg-forest-700 text-slate-900 dark:text-white cursor-pointer"
+              className="w-full appearance-none pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 border border-slate-200 dark:border-forest-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white dark:bg-forest-700 text-slate-900 dark:text-white cursor-pointer text-sm"
             >
               <option value="">全部分类</option>
               {categories.map((cat) => (
@@ -538,7 +538,7 @@ export default function KnowledgeBaseManagePage({ onUpload, onChat }: KnowledgeB
                           )}
                           <button
                             onClick={() => handleStartEditCategory(kb)}
-                            className="p-1 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded opacity-0 group-hover/category:opacity-100 transition-all"
+                            className="p-1 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded opacity-100 sm:opacity-0 sm:group-hover/category:opacity-100 transition-all"
                             title="编辑分类"
                           >
                             <Edit3 className="w-3.5 h-3.5" />

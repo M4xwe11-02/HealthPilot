@@ -57,7 +57,7 @@ function PreviewModal({ id, onClose }: { id: number; onClose: () => void }) {
   }, [id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <motion.div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -71,16 +71,16 @@ function PreviewModal({ id, onClose }: { id: number; onClose: () => void }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col
+        className="relative z-10 w-full max-w-2xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col
           bg-white dark:bg-forest-800
-          rounded-2xl shadow-2xl shadow-black/20
+          rounded-t-[28px] sm:rounded-2xl shadow-2xl shadow-black/20
           border border-slate-100 dark:border-forest-600 overflow-hidden"
       >
         {/* Header stripe */}
         <div className="h-[3px] bg-gradient-to-r from-primary-300 via-primary-500 to-primary-400 flex-shrink-0" />
 
         {/* Top bar */}
-        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-100 dark:border-forest-700 flex-shrink-0">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100 dark:border-forest-700 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
               <FileText className="w-4 h-4 text-primary-500" />
@@ -118,7 +118,7 @@ function PreviewModal({ id, onClose }: { id: number; onClose: () => void }) {
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5 overscroll-contain">
           {loading && (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
@@ -214,10 +214,10 @@ function PreviewModal({ id, onClose }: { id: number; onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-forest-700 flex-shrink-0">
+        <div className="grid grid-cols-2 gap-3 px-4 sm:px-6 py-4 border-t border-slate-100 dark:border-forest-700 flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-[13px] font-medium text-slate-500 dark:text-forest-300
+            className="min-h-11 px-4 py-2 rounded-lg text-[13px] font-medium text-slate-500 dark:text-forest-300
               hover:bg-slate-100 dark:hover:bg-forest-700 transition-colors"
           >
             关闭
@@ -226,7 +226,7 @@ function PreviewModal({ id, onClose }: { id: number; onClose: () => void }) {
             <a
               href={publicDocsApi.downloadUrl(detail.id)}
               download
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium
+              className="min-h-11 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium
                 bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-sm"
             >
               <Download className="w-3.5 h-3.5" />

@@ -551,7 +551,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                             {session.messageCount} 条消息 · {formatTimeAgo(session.updatedAt)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <div className="flex items-center gap-1 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-all">
                           <button
                             onClick={(e) => handleTogglePin(session.id, e)}
                             className={`p-1 rounded transition-colors ${session.isPinned
@@ -925,13 +925,14 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
               }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white dark:bg-forest-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100 dark:border-forest-600"
+                className="bg-white dark:bg-forest-800 rounded-t-[28px] sm:rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-6 border border-slate-100 dark:border-forest-600"
+                style={{paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))'}}
               >
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">编辑标题</h3>
                 <input

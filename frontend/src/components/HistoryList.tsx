@@ -233,7 +233,7 @@ export default function HistoryList({ onSelectHealthReport }: HistoryListProps) 
       animate={{ opacity: 1 }}
     >
       {/* 头部 */}
-      <div className="flex justify-between items-start mb-8 flex-wrap gap-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-5 sm:mb-8 gap-4 sm:gap-6">
         <div>
           <motion.h1
             className="text-2xl font-bold text-slate-800 flex items-center gap-3"
@@ -254,7 +254,7 @@ export default function HistoryList({ onSelectHealthReport }: HistoryListProps) 
         </div>
 
         <motion.div
-          className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-2.5 min-w-[280px] focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100 transition-all"
+          className="w-full sm:w-auto flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-2.5 sm:min-w-[280px] focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100 transition-all"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
         >
@@ -271,7 +271,7 @@ export default function HistoryList({ onSelectHealthReport }: HistoryListProps) 
 
       {/* 统计卡片 */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-5 sm:mb-8">
           <StatCard
             icon={FileStack}
             label="报告总数"
@@ -316,12 +316,12 @@ export default function HistoryList({ onSelectHealthReport }: HistoryListProps) 
       {/* 表格 */}
       {!loading && filteredHealthReports.length > 0 && (
         <motion.div
-          className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden"
+          className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto scrollbar-thin"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <table className="w-full">
+          <table className="w-full min-w-[860px]">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="text-left px-6 py-4 text-sm font-medium text-slate-600">名称</th>
