@@ -35,9 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class KnowledgeBaseQueryService {
     private static final String NO_RESULT_RESPONSE = "抱歉，在选定的知识库中未检索到相关信息。请换一个更具体的关键词或补充上下文后再试。";
     private static final Pattern SHORT_TOKEN_PATTERN = Pattern.compile("^[\\p{L}\\p{N}_-]{2,20}$");
-    // Keep the no-result probe short enough that the first visible answer is
-    // not delayed for an entire paragraph.
-    private static final int STREAM_PROBE_CHARS = 16;
+    private static final int STREAM_PROBE_CHARS = 120;
 
     private final ChatClient chatClient;
     private final KnowledgeBaseVectorService vectorService;
@@ -433,3 +431,4 @@ public class KnowledgeBaseQueryService {
     private record QueryContext(String originalQuestion, List<String> candidateQueries, SearchParams searchParams) {
     }
 }
+
