@@ -25,7 +25,7 @@ services:
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       # Host 5433 -> container 5432 to avoid conflicts with a local PostgreSQL.
-      - "${POSTGRES_HOST_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     # 健康检查：
     # 后端服务(app)需要等待数据库完全启动并准备好连接后才能启动。
     # 这里通过 pg_isready 命令检测数据库状态。
@@ -49,7 +49,7 @@ services:
     image: redis:7
     container_name: health-guardian-redis
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -79,8 +79,8 @@ services:
       MINIO_ROOT_USER: ${APP_STORAGE_ACCESS_KEY:-change-me-access-key}
       MINIO_ROOT_PASSWORD: ${APP_STORAGE_SECRET_KEY:-change-me-secret-key}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -128,15 +128,14 @@ services:
     image: ghcr.io/hkuds/lightrag:latest
     container_name: health-guardian-lightrag
     env_file:
-      - path: ./lightrag/.env
-        required: false
+      - ./lightrag/.env
     environment:
       WORKING_DIR: /app/data/rag_storage
       INPUT_DIR: /app/data/inputs
       HOST: 0.0.0.0
       PORT: 9621
     ports:
-      - "9621:9621"
+      - "127.0.0.1:9621:9621"
     volumes:
       - lightrag_storage:/app/data/rag_storage
       - lightrag_inputs:/app/data/inputs
@@ -182,6 +181,7 @@ services:
       # 这里的变量值来自宿主机的环境变量或 .env 文件
       AI_BAILIAN_API_KEY: ${AI_BAILIAN_API_KEY}
       AI_MODEL: ${AI_MODEL:-qwen-plus}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://m4xwe11.online,https://www.m4xwe11.online,http://47.245.7.145}
 
       # === 问诊参数配置 ===
       APP_CONSULTATION_FOLLOW_UP_COUNT: ${APP_CONSULTATION_FOLLOW_UP_COUNT:-1}
@@ -193,7 +193,7 @@ services:
       APP_LIGHTRAG_API_KEY: ${APP_LIGHTRAG_API_KEY:-}
       APP_LIGHTRAG_MODE: ${APP_LIGHTRAG_MODE:-mix}
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
 
   # =========================================
   # 6. 前端应用服务 (Vue/React + Nginx)
@@ -207,8 +207,7 @@ services:
     container_name: health-guardian-frontend
     depends_on:
       - app
-    ports:
-      - "80:80"
+    # 80 不对外发布; frpc 经 healthpilot_default 网络按服务名 frontend:80 访问
 
 # =========================================
 # 定义 Docker 卷 (Volumes)
