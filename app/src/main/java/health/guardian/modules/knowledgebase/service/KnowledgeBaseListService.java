@@ -30,6 +30,7 @@ public class KnowledgeBaseListService {
     private final KnowledgeBaseMapper knowledgeBaseMapper;
     private final FileStorageService fileStorageService;
     private final CurrentUserService currentUserService;
+    private final LightRagDocumentService lightRagDocumentService;
 
     public List<KnowledgeBaseListItemDTO> listKnowledgeBases(VectorStatus vectorStatus, String sortBy) {
         Long ownerId = currentUserService.requireCurrentUserId();
@@ -41,6 +42,7 @@ public class KnowledgeBaseListService {
             entities = sortEntities(entities, sortBy);
         }
 
+        refreshLightRagStatuses(entities);
         return knowledgeBaseMapper.toListItemDTOList(entities);
     }
 
@@ -54,6 +56,10 @@ public class KnowledgeBaseListService {
 
     public Optional<KnowledgeBaseListItemDTO> getKnowledgeBase(Long id) {
         return knowledgeBaseRepository.findByIdAndOwner_Id(id, currentUserService.requireCurrentUserId())
+            .map(entity -> {
+                refreshLightRagStatus(entity);
+                return entity;
+            })
             .map(knowledgeBaseMapper::toListItemDTO);
     }
 
@@ -79,6 +85,7 @@ public class KnowledgeBaseListService {
         List<KnowledgeBaseEntity> entities = category == null || category.isBlank()
             ? knowledgeBaseRepository.findByOwner_IdAndCategoryIsNullOrderByUploadedAtDesc(ownerId)
             : knowledgeBaseRepository.findByOwner_IdAndCategoryOrderByUploadedAtDesc(ownerId, category);
+        refreshLightRagStatuses(entities);
         return knowledgeBaseMapper.toListItemDTOList(entities);
     }
 
@@ -96,12 +103,12 @@ public class KnowledgeBaseListService {
         if (keyword == null || keyword.isBlank()) {
             return listKnowledgeBases();
         }
-        return knowledgeBaseMapper.toListItemDTOList(
-            knowledgeBaseRepository.searchByOwnerAndKeyword(
-                currentUserService.requireCurrentUserId(),
-                keyword.trim()
-            )
+        List<KnowledgeBaseEntity> entities = knowledgeBaseRepository.searchByOwnerAndKeyword(
+            currentUserService.requireCurrentUserId(),
+            keyword.trim()
         );
+        refreshLightRagStatuses(entities);
+        return knowledgeBaseMapper.toListItemDTOList(entities);
     }
 
     public List<KnowledgeBaseListItemDTO> listSorted(String sortBy) {
@@ -156,5 +163,20 @@ public class KnowledgeBaseListService {
 
     private int nullToZero(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private void refreshLightRagStatuses(List<KnowledgeBaseEntity> entities) {
+        entities.forEach(this::refreshLightRagStatus);
+    }
+
+    private void refreshLightRagStatus(KnowledgeBaseEntity entity) {
+        if (entity == null || entity.getLightRagTrackId() == null || entity.getLightRagTrackId().isBlank()) {
+            return;
+        }
+        String status = entity.getLightRagStatus();
+        if ("COMPLETED".equalsIgnoreCase(status) || "FAILED".equalsIgnoreCase(status)) {
+            return;
+        }
+        lightRagDocumentService.refreshTrackedStatus(entity);
     }
 }

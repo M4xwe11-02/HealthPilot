@@ -142,7 +142,7 @@ function ConsultationWrapper() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/healthpilot">
       <AuthProvider>
       <Suspense fallback={<Loading />}>
         <Routes>

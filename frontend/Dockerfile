@@ -28,7 +28,7 @@ RUN pnpm build
 FROM nginx:alpine
 
 # 从第一阶段 (builder) 复制构建产物 (dist 目录) 到 Nginx 的默认服务目录
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html/healthpilot
 
 # 复制自定义的 Nginx 配置文件
 # 用于处理路由转发（解决 React/Vue 单页应用刷新 404 问题）和 API 反向代理

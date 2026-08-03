@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LightRagDocumentService {
 
-    private static final int TRACK_POLL_ATTEMPTS = 120;
+    private static final int TRACK_POLL_ATTEMPTS = 360;
     private static final long TRACK_POLL_INTERVAL_MILLIS = 5_000L;
 
     private final LightRagProperties properties;
@@ -72,6 +72,29 @@ public class LightRagDocumentService {
                 knowledgeBase.getId(), trackId, e.getMessage());
             return currentStatus;
         }
+    }
+
+    public boolean deleteTrackedDocument(KnowledgeBaseEntity knowledgeBase) {
+        if (!properties.isEnabled()) {
+            return false;
+        }
+
+        String trackId = knowledgeBase.getLightRagTrackId();
+        if (trackId == null || trackId.isBlank()) {
+            log.debug("跳过 LightRAG 删除：知识库没有 trackId, kbId={}", knowledgeBase.getId());
+            return false;
+        }
+
+        LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId);
+        if (status.docIds().isEmpty()) {
+            log.warn("LightRAG 删除跳过：trackId 未找到文档, kbId={}, trackId={}", knowledgeBase.getId(), trackId);
+            return false;
+        }
+
+        LightRagClient.LightRagDeleteResult result = lightRagClient.deleteDocuments(status.docIds());
+        log.info("LightRAG 文档删除已提交: kbId={}, trackId={}, docIds={}, status={}, message={}",
+            knowledgeBase.getId(), trackId, status.docIds(), result.status(), result.message());
+        return true;
     }
 
     private void waitForProcessing(Long kbId, String trackId) throws InterruptedException {

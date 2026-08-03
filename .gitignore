@@ -30,5 +30,10 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
- 
+._*
+
+# misc
+codex_history/
+
+ 
  
