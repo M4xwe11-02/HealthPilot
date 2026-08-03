@@ -17,7 +17,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -151,7 +153,7 @@ public class LightRagClient {
     public LightRagTrackStatus getTrackStatus(String trackId) {
         ensureEnabled();
         if (trackId == null || trackId.isBlank()) {
-            return new LightRagTrackStatus("UNKNOWN", null);
+            return new LightRagTrackStatus("UNKNOWN", null, List.of());
         }
 
         try {
@@ -165,9 +167,10 @@ public class LightRagClient {
             Map<String, Object> body = objectMapper.readValue(response.body(), MAP_TYPE);
             Object documents = body.get("documents");
             if (!(documents instanceof Iterable<?> docs)) {
-                return new LightRagTrackStatus("UNKNOWN", null);
+                return new LightRagTrackStatus("UNKNOWN", null, List.of());
             }
 
+            List<String> docIds = new ArrayList<>();
             boolean hasDocument = false;
             boolean allCompleted = true;
             boolean anyFailed = false;
@@ -179,6 +182,10 @@ public class LightRagClient {
                     continue;
                 }
                 hasDocument = true;
+                String docId = stringValue(docMap.get("id"));
+                if (docId != null && !docId.isBlank()) {
+                    docIds.add(docId.trim());
+                }
                 String status = stringValue(docMap.get("status"));
                 if (firstStatus == null) {
                     firstStatus = status;
@@ -194,20 +201,57 @@ public class LightRagClient {
             }
 
             if (!hasDocument) {
-                return new LightRagTrackStatus("UNKNOWN", null);
+                return new LightRagTrackStatus("UNKNOWN", null, List.of());
             }
             if (anyFailed) {
-                return new LightRagTrackStatus("FAILED", error);
+                return new LightRagTrackStatus("FAILED", error, docIds);
             }
             if (allCompleted) {
-                return new LightRagTrackStatus("COMPLETED", null);
+                return new LightRagTrackStatus("COMPLETED", null, docIds);
             }
-            return new LightRagTrackStatus(normalizeTrackStatus(firstStatus), null);
+            return new LightRagTrackStatus(normalizeTrackStatus(firstStatus), null, docIds);
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "LightRAG 状态响应解析失败: " + e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "LightRAG 状态请求被中断");
+        }
+    }
+
+    public LightRagDeleteResult deleteDocuments(List<String> docIds) {
+        ensureEnabled();
+        List<String> normalizedDocIds = docIds == null ? List.of() : docIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (normalizedDocIds.isEmpty()) {
+            return new LightRagDeleteResult("skipped", "No LightRAG document ids to delete");
+        }
+
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("doc_ids", normalizedDocIds);
+            payload.put("delete_file", false);
+            payload.put("delete_llm_cache", true);
+
+            HttpRequest request = buildJsonDelete("/documents/delete_document", payload);
+            HttpResponse<String> response = httpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+            );
+            ensureSuccess(response.statusCode(), response.body());
+
+            Map<String, Object> body = objectMapper.readValue(response.body(), MAP_TYPE);
+            return new LightRagDeleteResult(
+                stringValue(body.get("status")),
+                stringValue(body.get("message"))
+            );
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "LightRAG 删除响应解析失败: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "LightRAG 删除请求被中断");
         }
     }
 
@@ -228,9 +272,7 @@ public class LightRagClient {
             .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
             .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
 
-        if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
-            builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
-        }
+        addAuthHeader(builder);
         return builder.build();
     }
 
@@ -240,10 +282,26 @@ public class LightRagClient {
             .timeout(nullToDefault(properties.getRequestTimeout(), Duration.ofMinutes(3)))
             .GET();
 
-        if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
-            builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
-        }
+        addAuthHeader(builder);
         return builder.build();
+    }
+
+    private HttpRequest buildJsonDelete(String path, Map<String, Object> payload) throws IOException {
+        String json = objectMapper.writeValueAsString(payload);
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+            .uri(URI.create(buildUrl(path)))
+            .timeout(nullToDefault(properties.getRequestTimeout(), Duration.ofMinutes(3)))
+            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            .method("DELETE", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
+
+        addAuthHeader(builder);
+        return builder.build();
+    }
+
+    private void addAuthHeader(HttpRequest.Builder builder) {
+        if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
+            builder.header("X-API-Key", properties.getApiKey().trim());
+        }
     }
 
     private String buildUrl(String path) {
@@ -319,6 +377,9 @@ public class LightRagClient {
     public record LightRagInsertResult(String status, String message, String trackId) {
     }
 
-    public record LightRagTrackStatus(String status, String error) {
+    public record LightRagTrackStatus(String status, String error, List<String> docIds) {
+    }
+
+    public record LightRagDeleteResult(String status, String message) {
     }
 }

@@ -27,6 +27,7 @@ public class KnowledgeBaseDeleteService {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final RagChatSessionRepository sessionRepository;
     private final KnowledgeBaseVectorService vectorService;
+    private final LightRagDocumentService lightRagDocumentService;
     private final FileStorageService storageService;
     private final CurrentUserService currentUserService;
     
@@ -58,17 +59,23 @@ public class KnowledgeBaseDeleteService {
         } catch (Exception e) {
             log.warn("删除向量数据失败，继续删除知识库: kbId={}, error={}", id, e.getMessage());
         }
+
+        // 4. 删除 LightRAG 中对应的文档和缓存，避免本地知识库删除后外部图谱仍残留
+        try {
+            lightRagDocumentService.deleteTrackedDocument(kb);
+        } catch (Exception e) {
+            log.warn("删除 LightRAG 文档失败，继续删除知识库: kbId={}, error={}", id, e.getMessage());
+        }
         
-        // 4. 删除RustFS中的文件（FileStorageService 已内置存在性检查）
+        // 5. 删除RustFS中的文件（FileStorageService 已内置存在性检查）
         try {
             storageService.deleteKnowledgeBase(kb.getStorageKey());
         } catch (Exception e) {
             log.warn("删除RustFS文件失败，继续删除知识库记录: kbId={}, error={}", id, e.getMessage());
         }
         
-        // 5. 删除知识库记录（在事务中）
+        // 6. 删除知识库记录（在事务中）
         knowledgeBaseRepository.delete(kb);
         log.info("知识库已删除: id={}", id);
     }
 }
-
