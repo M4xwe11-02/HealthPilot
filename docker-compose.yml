@@ -181,7 +181,7 @@ services:
       # 这里的变量值来自宿主机的环境变量或 .env 文件
       AI_BAILIAN_API_KEY: ${AI_BAILIAN_API_KEY}
       AI_MODEL: ${AI_MODEL:-qwen-plus}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://m4xwe11.online,https://www.m4xwe11.online,http://47.245.7.145}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
 
       # === 问诊参数配置 ===
       APP_CONSULTATION_FOLLOW_UP_COUNT: ${APP_CONSULTATION_FOLLOW_UP_COUNT:-1}
@@ -207,7 +207,7 @@ services:
     container_name: health-guardian-frontend
     depends_on:
       - app
-    # 80 不对外发布; frpc 经 healthpilot_default 网络按服务名 frontend:80 访问
+    # 80 不对外发布; 仅 Docker 内部网络按服务名 frontend:80 访问
 
 # =========================================
 # 定义 Docker 卷 (Volumes)
