@@ -82,6 +82,9 @@ public class KnowledgeBaseEntity {
     @Column(length = 30)
     private String lightRagStatus = "NOT_SUBMITTED";
 
+    @Column(length = 100)
+    private String lightRagWorkspace;
+
     @Column(length = 500)
     private String lightRagError;
 
@@ -250,6 +253,14 @@ public class KnowledgeBaseEntity {
         this.lightRagStatus = lightRagStatus;
     }
 
+    public String getLightRagWorkspace() {
+        return lightRagWorkspace;
+    }
+
+    public void setLightRagWorkspace(String lightRagWorkspace) {
+        this.lightRagWorkspace = lightRagWorkspace;
+    }
+
     public String getLightRagError() {
         return lightRagError;
     }
@@ -266,4 +277,3 @@ public class KnowledgeBaseEntity {
         this.chunkCount = chunkCount;
     }
 }
-

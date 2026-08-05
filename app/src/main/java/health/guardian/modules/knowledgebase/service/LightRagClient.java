@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,6 +34,10 @@ public class LightRagClient {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
+    private static final String WORKSPACE_HEADER = "LIGHTRAG-WORKSPACE";
+    private static final String ISOLATION_BLOCKED_RESPONSE =
+        "抱歉，LightRAG 返回内容未能确认来自当前选择的知识库，已为避免串库被拦截。请切换到当前检索引擎，或等待 LightRAG 重新入库完成后再试。";
+    private static final int STREAM_RESPONSE_BUFFER_LIMIT = 8192;
 
     private final LightRagProperties properties;
     private final ObjectMapper objectMapper;
@@ -46,10 +51,10 @@ public class LightRagClient {
             .build();
     }
 
-    public LightRagQueryResult query(String question) {
+    public LightRagQueryResult query(String question, String workspace, List<String> allowedSourcePrefixes) {
         ensureEnabled();
         try {
-            HttpRequest request = buildJsonPost("/query", buildQueryPayload(question));
+            HttpRequest request = buildJsonPost("/query", buildQueryPayload(question), workspace);
             HttpResponse<String> response = httpClient.send(
                 request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
@@ -57,6 +62,12 @@ public class LightRagClient {
             ensureSuccess(response.statusCode(), response.body());
 
             Map<String, Object> body = objectMapper.readValue(response.body(), MAP_TYPE);
+            ReferenceCheck referenceCheck = validateReferences(body.get("references"), allowedSourcePrefixes);
+            if (!referenceCheck.allowed()) {
+                log.warn("LightRAG response blocked by source isolation: workspace={}, reason={}, rejectedPaths={}",
+                    workspace, referenceCheck.reason(), referenceCheck.rejectedPaths());
+                return new LightRagQueryResult(ISOLATION_BLOCKED_RESPONSE);
+            }
             Object answer = body.get("response");
             return new LightRagQueryResult(answer == null ? "" : answer.toString());
         } catch (IOException e) {
@@ -67,7 +78,7 @@ public class LightRagClient {
         }
     }
 
-    public Flux<String> queryStream(String question) {
+    public Flux<String> queryStream(String question, String workspace, List<String> allowedSourcePrefixes) {
         if (!properties.isEnabled()) {
             return Flux.just("【错误】LightRAG 未启用，请配置 APP_LIGHTRAG_ENABLED=true 和 APP_LIGHTRAG_BASE_URL。");
         }
@@ -77,8 +88,10 @@ public class LightRagClient {
             final Thread[] workerRef = new Thread[1];
 
             workerRef[0] = Thread.ofVirtual().name("lightrag-stream-", 0).start(() -> {
+                ReferenceGuard referenceGuard = new ReferenceGuard(allowedSourcePrefixes);
+                StringBuilder responseBuffer = new StringBuilder();
                 try {
-                    HttpRequest request = buildJsonPost("/query/stream", buildQueryPayload(question));
+                    HttpRequest request = buildJsonPost("/query/stream", buildQueryPayload(question), workspace);
                     HttpResponse<Stream<String>> response = httpClient.send(
                         request,
                         HttpResponse.BodyHandlers.ofLines()
@@ -93,12 +106,27 @@ public class LightRagClient {
                     }
 
                     try (Stream<String> lines = response.body()) {
-                        lines
-                            .takeWhile(line -> !cancelled.get() && !Thread.currentThread().isInterrupted())
-                            .forEach(line -> emitNdjsonChunk(line, sink));
+                        Iterator<String> iterator = lines.iterator();
+                        while (!cancelled.get() && !Thread.currentThread().isInterrupted() && iterator.hasNext()) {
+                            StreamDecision decision = emitNdjsonChunk(
+                                iterator.next(),
+                                sink,
+                                referenceGuard,
+                                responseBuffer
+                            );
+                            if (decision == StreamDecision.STOP) {
+                                return;
+                            }
+                        }
                     }
 
                     if (!cancelled.get() && !sink.isCancelled()) {
+                        if (referenceGuard.shouldBlockBufferedResponse()) {
+                            log.warn("LightRAG stream blocked because references were missing: workspace={}", workspace);
+                            sink.next(ISOLATION_BLOCKED_RESPONSE);
+                        } else if (!responseBuffer.isEmpty()) {
+                            sink.next(responseBuffer.toString());
+                        }
                         sink.complete();
                     }
                 } catch (InterruptedException e) {
@@ -122,14 +150,14 @@ public class LightRagClient {
         });
     }
 
-    public LightRagInsertResult insertText(String text, String fileSource) {
+    public LightRagInsertResult insertText(String text, String fileSource, String workspace) {
         ensureEnabled();
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("text", text);
             payload.put("file_source", fileSource);
 
-            HttpRequest request = buildJsonPost("/documents/text", payload);
+            HttpRequest request = buildJsonPost("/documents/text", payload, workspace);
             HttpResponse<String> response = httpClient.send(
                 request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
@@ -150,14 +178,14 @@ public class LightRagClient {
         }
     }
 
-    public LightRagTrackStatus getTrackStatus(String trackId) {
+    public LightRagTrackStatus getTrackStatus(String trackId, String workspace) {
         ensureEnabled();
         if (trackId == null || trackId.isBlank()) {
             return new LightRagTrackStatus("UNKNOWN", null, List.of());
         }
 
         try {
-            HttpRequest request = buildJsonGet("/documents/track_status/" + trackId.trim());
+            HttpRequest request = buildJsonGet("/documents/track_status/" + trackId.trim(), workspace);
             HttpResponse<String> response = httpClient.send(
                 request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
@@ -218,7 +246,7 @@ public class LightRagClient {
         }
     }
 
-    public LightRagDeleteResult deleteDocuments(List<String> docIds) {
+    public LightRagDeleteResult deleteDocuments(List<String> docIds, String workspace) {
         ensureEnabled();
         List<String> normalizedDocIds = docIds == null ? List.of() : docIds.stream()
             .filter(id -> id != null && !id.isBlank())
@@ -235,7 +263,7 @@ public class LightRagClient {
             payload.put("delete_file", false);
             payload.put("delete_llm_cache", true);
 
-            HttpRequest request = buildJsonDelete("/documents/delete_document", payload);
+            HttpRequest request = buildJsonDelete("/documents/delete_document", payload, workspace);
             HttpResponse<String> response = httpClient.send(
                 request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
@@ -264,7 +292,7 @@ public class LightRagClient {
         return payload;
     }
 
-    private HttpRequest buildJsonPost(String path, Map<String, Object> payload) throws IOException {
+    private HttpRequest buildJsonPost(String path, Map<String, Object> payload, String workspace) throws IOException {
         String json = objectMapper.writeValueAsString(payload);
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(URI.create(buildUrl(path)))
@@ -272,21 +300,21 @@ public class LightRagClient {
             .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
             .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
 
-        addAuthHeader(builder);
+        addRequestHeaders(builder, workspace);
         return builder.build();
     }
 
-    private HttpRequest buildJsonGet(String path) {
+    private HttpRequest buildJsonGet(String path, String workspace) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(URI.create(buildUrl(path)))
             .timeout(nullToDefault(properties.getRequestTimeout(), Duration.ofMinutes(3)))
             .GET();
 
-        addAuthHeader(builder);
+        addRequestHeaders(builder, workspace);
         return builder.build();
     }
 
-    private HttpRequest buildJsonDelete(String path, Map<String, Object> payload) throws IOException {
+    private HttpRequest buildJsonDelete(String path, Map<String, Object> payload, String workspace) throws IOException {
         String json = objectMapper.writeValueAsString(payload);
         HttpRequest.Builder builder = HttpRequest.newBuilder()
             .uri(URI.create(buildUrl(path)))
@@ -294,8 +322,15 @@ public class LightRagClient {
             .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
             .method("DELETE", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
 
-        addAuthHeader(builder);
+        addRequestHeaders(builder, workspace);
         return builder.build();
+    }
+
+    private void addRequestHeaders(HttpRequest.Builder builder, String workspace) {
+        addAuthHeader(builder);
+        if (workspace != null && !workspace.isBlank()) {
+            builder.header(WORKSPACE_HEADER, workspace.trim());
+        }
     }
 
     private void addAuthHeader(HttpRequest.Builder builder) {
@@ -312,19 +347,51 @@ public class LightRagClient {
         return baseUrl + path;
     }
 
-    private void emitNdjsonChunk(String line, reactor.core.publisher.FluxSink<String> sink) {
+    private StreamDecision emitNdjsonChunk(
+        String line,
+        reactor.core.publisher.FluxSink<String> sink,
+        ReferenceGuard referenceGuard,
+        StringBuilder responseBuffer
+    ) {
         if (line == null || line.isBlank() || sink.isCancelled()) {
-            return;
+            return StreamDecision.CONTINUE;
         }
         try {
             Map<String, Object> body = objectMapper.readValue(line.trim(), MAP_TYPE);
+            if (body.containsKey("references")) {
+                ReferenceCheck referenceCheck = referenceGuard.validate(body.get("references"));
+                if (!referenceCheck.allowed()) {
+                    log.warn("LightRAG stream blocked by source isolation: reason={}, rejectedPaths={}",
+                        referenceCheck.reason(), referenceCheck.rejectedPaths());
+                    sink.next(ISOLATION_BLOCKED_RESPONSE);
+                    sink.complete();
+                    return StreamDecision.STOP;
+                }
+                if (!responseBuffer.isEmpty()) {
+                    sink.next(responseBuffer.toString());
+                    responseBuffer.setLength(0);
+                }
+            }
+
             Object chunk = body.get("response");
             if (chunk != null && !chunk.toString().isEmpty()) {
-                sink.next(chunk.toString());
+                referenceGuard.markResponseSeen();
+                if (referenceGuard.needsReferenceBeforeEmitting()) {
+                    responseBuffer.append(chunk);
+                    if (responseBuffer.length() > STREAM_RESPONSE_BUFFER_LIMIT) {
+                        log.warn("LightRAG stream blocked because response arrived before references");
+                        sink.next(ISOLATION_BLOCKED_RESPONSE);
+                        sink.complete();
+                        return StreamDecision.STOP;
+                    }
+                } else {
+                    sink.next(chunk.toString());
+                }
             }
         } catch (Exception e) {
             log.debug("忽略无法解析的 LightRAG 流片段: {}", line);
         }
+        return StreamDecision.CONTINUE;
     }
 
     private void ensureEnabled() {
@@ -369,6 +436,126 @@ public class LightRagClient {
             case "PENDING", "PROCESSING", "PREPROCESSED", "SUBMITTED", "SUBMITTING" -> "PROCESSING";
             default -> normalized;
         };
+    }
+
+    private static ReferenceCheck validateReferences(Object references, List<String> allowedSourcePrefixes) {
+        List<String> normalizedAllowedPrefixes = normalizeAllowedPrefixes(allowedSourcePrefixes);
+        if (normalizedAllowedPrefixes.isEmpty()) {
+            return ReferenceCheck.allow();
+        }
+        if (!(references instanceof Iterable<?> refs)) {
+            return ReferenceCheck.deny("missing references", List.of());
+        }
+
+        boolean hasReference = false;
+        List<String> rejectedPaths = new ArrayList<>();
+        for (Object ref : refs) {
+            hasReference = true;
+            String path = extractReferencePath(ref);
+            if (path == null || path.isBlank()) {
+                rejectedPaths.add("<missing file_path>");
+                continue;
+            }
+            if (!isAllowedReferencePath(path, normalizedAllowedPrefixes)) {
+                rejectedPaths.add(path);
+            }
+        }
+
+        if (!hasReference) {
+            return ReferenceCheck.deny("empty references", List.of());
+        }
+        if (!rejectedPaths.isEmpty()) {
+            return ReferenceCheck.deny("references outside selected knowledge bases", rejectedPaths);
+        }
+        return ReferenceCheck.allow();
+    }
+
+    private static List<String> normalizeAllowedPrefixes(List<String> allowedSourcePrefixes) {
+        if (allowedSourcePrefixes == null || allowedSourcePrefixes.isEmpty()) {
+            return List.of();
+        }
+        return allowedSourcePrefixes.stream()
+            .filter(prefix -> prefix != null && !prefix.isBlank())
+            .map(LightRagClient::normalizeReferencePath)
+            .distinct()
+            .toList();
+    }
+
+    private static String extractReferencePath(Object reference) {
+        if (reference instanceof Map<?, ?> refMap) {
+            for (String key : List.of("file_path", "file_source", "source", "path", "document_source")) {
+                Object value = refMap.get(key);
+                if (value != null && !value.toString().isBlank()) {
+                    return value.toString();
+                }
+            }
+            return null;
+        }
+        return reference == null ? null : reference.toString();
+    }
+
+    private static boolean isAllowedReferencePath(String path, List<String> allowedPrefixes) {
+        String normalizedPath = normalizeReferencePath(path);
+        int sourceMarker = normalizedPath.indexOf("knowledge-base/");
+        if (sourceMarker >= 0) {
+            normalizedPath = normalizedPath.substring(sourceMarker);
+        }
+        String canonicalPath = normalizedPath;
+        return allowedPrefixes.stream().anyMatch(canonicalPath::startsWith);
+    }
+
+    private static String normalizeReferencePath(String value) {
+        String normalized = value.trim().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
+
+    private enum StreamDecision {
+        CONTINUE,
+        STOP
+    }
+
+    private static final class ReferenceGuard {
+        private final List<String> allowedSourcePrefixes;
+        private boolean validatedReferences;
+        private boolean responseSeen;
+
+        private ReferenceGuard(List<String> allowedSourcePrefixes) {
+            this.allowedSourcePrefixes = normalizeAllowedPrefixes(allowedSourcePrefixes);
+            this.validatedReferences = this.allowedSourcePrefixes.isEmpty();
+        }
+
+        private ReferenceCheck validate(Object references) {
+            ReferenceCheck check = validateReferences(references, allowedSourcePrefixes);
+            if (check.allowed()) {
+                validatedReferences = true;
+            }
+            return check;
+        }
+
+        private void markResponseSeen() {
+            responseSeen = true;
+        }
+
+        private boolean needsReferenceBeforeEmitting() {
+            return !validatedReferences;
+        }
+
+        private boolean shouldBlockBufferedResponse() {
+            return responseSeen && !validatedReferences;
+        }
+    }
+
+    private record ReferenceCheck(boolean allowed, String reason, List<String> rejectedPaths) {
+        private static ReferenceCheck allow() {
+            return new ReferenceCheck(true, null, List.of());
+        }
+
+        private static ReferenceCheck deny(String reason, List<String> rejectedPaths) {
+            return new ReferenceCheck(false, reason, rejectedPaths);
+        }
     }
 
     public record LightRagQueryResult(String response) {

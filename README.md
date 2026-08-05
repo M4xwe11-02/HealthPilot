@@ -154,6 +154,13 @@ EMBEDDING_BINDING_API_KEY=your_bailian_api_key_here
 
 The root `.env` enables the backend-to-LightRAG integration by default through
 `APP_LIGHTRAG_ENABLED=true` and `APP_LIGHTRAG_BASE_URL=http://localhost:9621`.
+The LightRAG workspace gateway maps `LIGHTRAG-WORKSPACE=user_<id>` to a separate
+LightRAG process and storage namespace for every application user. It rejects
+business requests without a valid workspace, while the backend also checks
+returned references against the selected knowledge-base sources. Existing
+documents from the old shared workspace are re-parsed from object storage and
+re-indexed automatically the first time they are selected for a LightRAG query.
+Compose pins the verified multi-architecture LightRAG image version to `v1.5.5`.
 
 ### Launch Infrastructure
 
@@ -218,6 +225,9 @@ Open **http://localhost:5173**. The development admin account is initialized as 
 | `AI_BAILIAN_API_KEY` | Yes | Backend LLM and embedding access |
 | `APP_LIGHTRAG_ENABLED` | For graph RAG | Enables LightRAG-backed retrieval |
 | `APP_LIGHTRAG_BASE_URL` | For graph RAG | Backend URL for the LightRAG HTTP service |
+| `APP_LIGHTRAG_API_KEY` | Optional | Shared key for authenticated LightRAG HTTP calls |
+| `LIGHTRAG_MAX_WORKSPACE_PROCESSES` | Optional | Maximum resident per-user LightRAG processes (default `16`) |
+| `LIGHTRAG_WORKSPACE_IDLE_TIMEOUT` | Optional | Seconds before an idle user process is stopped (default `1800`) |
 | `LLM_BINDING_API_KEY` | For LightRAG | LightRAG LLM provider key |
 | `EMBEDDING_BINDING_API_KEY` | For LightRAG | LightRAG embedding provider key |
 
