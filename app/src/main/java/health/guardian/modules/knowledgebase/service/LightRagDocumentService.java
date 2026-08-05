@@ -21,30 +21,32 @@ public class LightRagDocumentService {
     private final LightRagProperties properties;
     private final LightRagClient lightRagClient;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final LightRagScopeService lightRagScopeService;
 
     public boolean submitTextAsync(KnowledgeBaseEntity knowledgeBase, String content) {
         if (!properties.isEnabled() || !properties.isIngestOnUpload()) {
-            updateStatus(knowledgeBase.getId(), "NOT_SUBMITTED", null, null);
+            updateStatus(knowledgeBase.getId(), "NOT_SUBMITTED", null, null, null);
             return false;
         }
         if (content == null || content.isBlank()) {
-            updateStatus(knowledgeBase.getId(), "FAILED", null, "content is blank");
+            updateStatus(knowledgeBase.getId(), "FAILED", null, "content is blank", null);
             return false;
         }
 
         Long kbId = knowledgeBase.getId();
-        String fileSource = "knowledge-base/" + kbId + "/" + knowledgeBase.getOriginalFilename();
-        updateStatus(kbId, "SUBMITTING", null, null);
+        String workspace = lightRagScopeService.workspaceFor(knowledgeBase);
+        String fileSource = lightRagScopeService.fileSourceFor(knowledgeBase);
+        updateStatus(kbId, "SUBMITTING", null, null, workspace);
 
         Thread.ofVirtual().name("lightrag-ingest-", 0).start(() -> {
             try {
-                LightRagClient.LightRagInsertResult result = lightRagClient.insertText(content, fileSource);
-                updateStatus(kbId, "PROCESSING", result.trackId(), null);
-                log.info("LightRAG ingestion submitted: kbId={}, trackId={}, status={}",
-                    kbId, result.trackId(), result.status());
-                waitForProcessing(kbId, result.trackId());
+                LightRagClient.LightRagInsertResult result = lightRagClient.insertText(content, fileSource, workspace);
+                updateStatus(kbId, "PROCESSING", result.trackId(), null, workspace);
+                log.info("LightRAG ingestion submitted: kbId={}, workspace={}, trackId={}, status={}",
+                    kbId, workspace, result.trackId(), result.status());
+                waitForProcessing(kbId, result.trackId(), workspace);
             } catch (Exception e) {
-                updateStatus(kbId, "FAILED", null, e.getMessage());
+                updateStatus(kbId, "FAILED", null, e.getMessage(), workspace);
                 log.warn("LightRAG ingestion failed: kbId={}, error={}", kbId, e.getMessage());
             }
         });
@@ -64,8 +66,12 @@ public class LightRagDocumentService {
         }
 
         try {
-            LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId);
-            updateStatus(knowledgeBase.getId(), status.status(), trackId, status.error());
+            String workspace = lightRagScopeService.workspaceFor(knowledgeBase);
+            if (!workspace.equals(knowledgeBase.getLightRagWorkspace())) {
+                return currentStatus;
+            }
+            LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId, workspace);
+            updateStatus(knowledgeBase.getId(), status.status(), trackId, status.error(), workspace);
             return status.status();
         } catch (Exception e) {
             log.warn("LightRAG status refresh failed: kbId={}, trackId={}, error={}",
@@ -85,43 +91,52 @@ public class LightRagDocumentService {
             return false;
         }
 
-        LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId);
+        String workspace = lightRagScopeService.workspaceFor(knowledgeBase);
+        if (!workspace.equals(knowledgeBase.getLightRagWorkspace())) {
+            log.info("跳过旧共享 workspace 中的 LightRAG 文档删除: kbId={}, recordedWorkspace={}",
+                knowledgeBase.getId(), knowledgeBase.getLightRagWorkspace());
+            return false;
+        }
+        LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId, workspace);
         if (status.docIds().isEmpty()) {
             log.warn("LightRAG 删除跳过：trackId 未找到文档, kbId={}, trackId={}", knowledgeBase.getId(), trackId);
             return false;
         }
 
-        LightRagClient.LightRagDeleteResult result = lightRagClient.deleteDocuments(status.docIds());
-        log.info("LightRAG 文档删除已提交: kbId={}, trackId={}, docIds={}, status={}, message={}",
-            knowledgeBase.getId(), trackId, status.docIds(), result.status(), result.message());
+        LightRagClient.LightRagDeleteResult result = lightRagClient.deleteDocuments(status.docIds(), workspace);
+        log.info("LightRAG 文档删除已提交: kbId={}, workspace={}, trackId={}, docIds={}, status={}, message={}",
+            knowledgeBase.getId(), workspace, trackId, status.docIds(), result.status(), result.message());
         return true;
     }
 
-    private void waitForProcessing(Long kbId, String trackId) throws InterruptedException {
+    private void waitForProcessing(Long kbId, String trackId, String workspace) throws InterruptedException {
         if (trackId == null || trackId.isBlank()) {
             return;
         }
 
         for (int i = 0; i < TRACK_POLL_ATTEMPTS; i++) {
-            LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId);
-            updateStatus(kbId, status.status(), trackId, status.error());
+            LightRagClient.LightRagTrackStatus status = lightRagClient.getTrackStatus(trackId, workspace);
+            updateStatus(kbId, status.status(), trackId, status.error(), workspace);
             if ("COMPLETED".equals(status.status()) || "FAILED".equals(status.status())) {
-                log.info("LightRAG ingestion finished: kbId={}, trackId={}, status={}",
-                    kbId, trackId, status.status());
+                log.info("LightRAG ingestion finished: kbId={}, workspace={}, trackId={}, status={}",
+                    kbId, workspace, trackId, status.status());
                 return;
             }
             Thread.sleep(TRACK_POLL_INTERVAL_MILLIS);
         }
 
-        updateStatus(kbId, "PROCESSING", trackId, "LightRAG processing timeout; check pipeline status");
+        updateStatus(kbId, "PROCESSING", trackId, "LightRAG processing timeout; check pipeline status", workspace);
         log.warn("LightRAG ingestion still processing after timeout: kbId={}, trackId={}", kbId, trackId);
     }
 
-    private void updateStatus(Long kbId, String status, String trackId, String error) {
+    private void updateStatus(Long kbId, String status, String trackId, String error, String workspace) {
         knowledgeBaseRepository.findById(kbId).ifPresent(kb -> {
             kb.setLightRagStatus(normalizeStatus(status));
             if (trackId != null) {
                 kb.setLightRagTrackId(trackId);
+            }
+            if (workspace != null && !workspace.isBlank()) {
+                kb.setLightRagWorkspace(workspace);
             }
             kb.setLightRagError(error);
             knowledgeBaseRepository.save(kb);

@@ -125,20 +125,24 @@ services:
   #   - 处理核心业务逻辑（体检报告分析、AI问诊、健康知识库RAG）
   # =========================================
   lightrag:
-    image: ghcr.io/hkuds/lightrag:latest
+    image: ghcr.io/hkuds/lightrag:v1.5.5
     container_name: health-guardian-lightrag
+    command: ["python", "/app/healthpilot/multi_workspace_gateway.py"]
     env_file:
       - ./lightrag/.env
     environment:
       WORKING_DIR: /app/data/rag_storage
       INPUT_DIR: /app/data/inputs
-      HOST: 0.0.0.0
-      PORT: 9621
+      LIGHTRAG_GATEWAY_HOST: 0.0.0.0
+      LIGHTRAG_GATEWAY_PORT: 9621
+      LIGHTRAG_MAX_WORKSPACE_PROCESSES: ${LIGHTRAG_MAX_WORKSPACE_PROCESSES:-16}
+      LIGHTRAG_WORKSPACE_IDLE_TIMEOUT: ${LIGHTRAG_WORKSPACE_IDLE_TIMEOUT:-1800}
     ports:
       - "127.0.0.1:9621:9621"
     volumes:
       - lightrag_storage:/app/data/rag_storage
       - lightrag_inputs:/app/data/inputs
+      - ./lightrag/multi_workspace_gateway.py:/app/healthpilot/multi_workspace_gateway.py:ro
 
   app:
     build:

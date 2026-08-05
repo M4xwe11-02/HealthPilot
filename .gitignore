@@ -26,6 +26,8 @@ logs/
 *.log
 *.hprof
 *.tmp
+__pycache__/
+*.py[cod]
 
 # OS
 .DS_Store
@@ -34,6 +36,3 @@ Thumbs.db
 
 # misc
 codex_history/
-
- 
- 
