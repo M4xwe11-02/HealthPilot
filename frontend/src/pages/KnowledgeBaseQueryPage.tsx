@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, useTransition} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, useTransition} from 'react';
 import {AnimatePresence, motion} from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -30,6 +30,13 @@ interface CategoryGroup {
 }
 
 type MobilePanel = 'chat' | 'sessions' | 'sources';
+
+const LIGHTRAG_STATUS_POLL_INTERVAL_MS = 5000;
+
+function isLightRagProcessing(kb: KnowledgeBaseItem): boolean {
+  const status = kb.lightRagStatus?.toUpperCase();
+  return status === 'SUBMITTING' || status === 'PROCESSING' || status === 'PENDING';
+}
 
 export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBaseQueryPageProps) {
   // 知识库状态
@@ -64,11 +71,39 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
   // refs
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const rafRef = useRef<number>();
+  const appliedSearchKeywordRef = useRef('');
+  const listRequestIdRef = useRef(0);
+  const loadingListRequestRef = useRef(false);
 
   const [, startTransition] = useTransition();
 
+  const fetchKnowledgeBases = useCallback(() => {
+    const appliedSearchKeyword = appliedSearchKeywordRef.current;
+    return appliedSearchKeyword
+      ? knowledgeBaseApi.search(appliedSearchKeyword)
+      : knowledgeBaseApi.getAllKnowledgeBases(sortBy, 'COMPLETED');
+  }, [sortBy]);
+
+  const loadKnowledgeBases = useCallback(async () => {
+    const requestId = ++listRequestIdRef.current;
+    loadingListRequestRef.current = true;
+    setLoadingList(true);
+    try {
+      const list = await fetchKnowledgeBases();
+      if (requestId === listRequestIdRef.current) {
+        setKnowledgeBases(list);
+      }
+    } catch (err) {
+      console.error('加载知识库列表失败', err);
+    } finally {
+      if (requestId === listRequestIdRef.current) {
+        loadingListRequestRef.current = false;
+        setLoadingList(false);
+      }
+    }
+  }, [fetchKnowledgeBases]);
+
   useEffect(() => {
-    loadKnowledgeBases();
     loadSessions();
 
     return () => {
@@ -79,38 +114,61 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
   }, []);
 
   useEffect(() => {
-    if (!searchKeyword) {
-      loadKnowledgeBases();
-    }
-  }, [sortBy]);
+    void loadKnowledgeBases();
+  }, [loadKnowledgeBases]);
 
-  const loadKnowledgeBases = async () => {
-    setLoadingList(true);
-    try {
-      // 问答助手只显示向量化完成的知识库
-      const list = await knowledgeBaseApi.getAllKnowledgeBases(sortBy, 'COMPLETED');
-      setKnowledgeBases(list);
-    } catch (err) {
-      console.error('加载知识库列表失败', err);
-    } finally {
-      setLoadingList(false);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchKeyword.trim()) {
-      loadKnowledgeBases();
+  useEffect(() => {
+    if (ragProvider !== 'LIGHTRAG' || loadingList) {
       return;
     }
-    setLoadingList(true);
-    try {
-      const list = await knowledgeBaseApi.search(searchKeyword.trim());
-      setKnowledgeBases(list);
-    } catch (err) {
-      console.error('搜索知识库失败', err);
-    } finally {
-      setLoadingList(false);
-    }
+
+    let stopped = false;
+    let timer: number | undefined;
+
+    const scheduleNextPoll = () => {
+      timer = window.setTimeout(pollLightRagStatuses, LIGHTRAG_STATUS_POLL_INTERVAL_MS);
+    };
+
+    const pollLightRagStatuses = async () => {
+      if (stopped) {
+        return;
+      }
+      if (loadingListRequestRef.current) {
+        scheduleNextPoll();
+        return;
+      }
+
+      const requestId = ++listRequestIdRef.current;
+      try {
+        const list = await fetchKnowledgeBases();
+        if (stopped || requestId !== listRequestIdRef.current) {
+          return;
+        }
+        setKnowledgeBases(list);
+        if (list.some(isLightRagProcessing)) {
+          scheduleNextPoll();
+        }
+      } catch (err) {
+        if (!stopped && requestId === listRequestIdRef.current) {
+          console.error('轮询 LightRAG 图谱状态失败', err);
+          scheduleNextPoll();
+        }
+      }
+    };
+
+    void pollLightRagStatuses();
+
+    return () => {
+      stopped = true;
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [ragProvider, loadingList, fetchKnowledgeBases]);
+
+  const handleSearch = async () => {
+    appliedSearchKeywordRef.current = searchKeyword.trim();
+    await loadKnowledgeBases();
   };
 
   const groupedKnowledgeBases = useMemo((): CategoryGroup[] => {
@@ -786,6 +844,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                   <select
                     value={sortBy}
                     onChange={(e) => {
+                      appliedSearchKeywordRef.current = '';
                       setSortBy(e.target.value as SortOption);
                       setSearchKeyword('');
                     }}
