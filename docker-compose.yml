@@ -172,6 +172,20 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
 
+      # === QQ Mail 验证码登录（可选） ===
+      APP_EMAIL_LOGIN_ENABLED: ${APP_EMAIL_LOGIN_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-smtp.qq.com}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_AUTH_CODE: ${MAIL_AUTH_CODE:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_SENDER_NAME: ${MAIL_SENDER_NAME:-Health Guard}
+      APP_EMAIL_CODE_TTL: ${APP_EMAIL_CODE_TTL:-5m}
+      APP_EMAIL_RESEND_COOLDOWN: ${APP_EMAIL_RESEND_COOLDOWN:-60s}
+      APP_EMAIL_SEND_LIMIT_WINDOW: ${APP_EMAIL_SEND_LIMIT_WINDOW:-1h}
+      APP_EMAIL_MAX_SENDS_PER_WINDOW: ${APP_EMAIL_MAX_SENDS_PER_WINDOW:-5}
+      APP_EMAIL_MAX_VERIFY_ATTEMPTS: ${APP_EMAIL_MAX_VERIFY_ATTEMPTS:-5}
+
       # === 对象存储配置 ===
       # 注意：后端在容器内访问 compose 自带的 MinIO，使用 http://minio:9000。
       # 如果本地 bootRun 对接外部 RustFS，请在启动后端时使用 APP_STORAGE_ENDPOINT=http://localhost:9000。

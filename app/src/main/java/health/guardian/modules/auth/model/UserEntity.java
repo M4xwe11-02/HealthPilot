@@ -14,7 +14,8 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "app_users", indexes = {
-    @Index(name = "idx_app_user_username", columnList = "username", unique = true)
+    @Index(name = "idx_app_user_username", columnList = "username", unique = true),
+    @Index(name = "idx_app_user_email", columnList = "email", unique = true)
 })
 public class UserEntity {
 
@@ -24,6 +25,9 @@ public class UserEntity {
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;
+
+    @Column(unique = true, length = 254)
+    private String email;
 
     @Column(nullable = false, length = 100)
     private String displayName;
@@ -69,6 +73,14 @@ public class UserEntity {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getDisplayName() {

@@ -45,6 +45,9 @@ class AuthServiceTest {
     @Mock
     private OwnershipMigrationService ownershipMigrationService;
 
+    @Mock
+    private EmailAccountMergeService emailAccountMergeService;
+
     private PasswordHasher passwordHasher;
     private AuthTokenService tokenService;
     private AuthService authService;
@@ -57,6 +60,7 @@ class AuthServiceTest {
             userRepository,
             sessionRepository,
             ownershipMigrationService,
+            emailAccountMergeService,
             passwordHasher,
             tokenService,
             CLOCK
@@ -80,7 +84,7 @@ class AuthServiceTest {
         );
 
         assertThat(response.token()).isNotBlank();
-        assertThat(response.user()).isEqualTo(new CurrentUserDTO(1L, "alice", "Alice Zhang", false));
+        assertThat(response.user()).isEqualTo(new CurrentUserDTO(1L, "alice", "Alice Zhang", false, null));
 
         ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
         verify(userRepository).save(userCaptor.capture());
@@ -108,6 +112,92 @@ class AuthServiceTest {
             .isEqualTo(ErrorCode.UNAUTHORIZED.getCode());
 
         verify(sessionRepository, never()).save(any(AuthSessionEntity.class));
+    }
+
+    @Test
+    @DisplayName("email login reuses an existing email account and issues a normal session")
+    void emailLoginReusesExistingAccount() {
+        UserEntity user = new UserEntity();
+        user.setId(3L);
+        user.setUsername("mail_existing");
+        user.setEmail("demo@qq.com");
+        user.setDisplayName("demo");
+        when(userRepository.findByEmail("demo@qq.com")).thenReturn(Optional.of(user));
+        when(sessionRepository.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuthResponse response = authService.loginWithEmail("demo@qq.com");
+
+        assertThat(response.token()).isNotBlank();
+        assertThat(response.user().id()).isEqualTo(3L);
+        verify(userRepository, never()).save(any(UserEntity.class));
+    }
+
+    @Test
+    @DisplayName("first email login creates a stable email user without storing a usable password")
+    void emailLoginCreatesEmailUser() {
+        when(userRepository.findByEmail("demo@qq.com")).thenReturn(Optional.empty());
+        when(userRepository.count()).thenReturn(1L);
+        when(userRepository.existsByUsername(any())).thenReturn(false);
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> {
+            UserEntity user = invocation.getArgument(0);
+            user.setId(4L);
+            return user;
+        });
+        when(sessionRepository.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuthResponse response = authService.loginWithEmail("demo@qq.com");
+
+        ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository).save(userCaptor.capture());
+        UserEntity saved = userCaptor.getValue();
+        assertThat(saved.getEmail()).isEqualTo("demo@qq.com");
+        assertThat(saved.getUsername()).startsWith("mail_").hasSize(29);
+        assertThat(saved.getDisplayName()).isEqualTo("demo");
+        assertThat(saved.getPasswordHash()).isNotBlank();
+        assertThat(response.user().id()).isEqualTo(4L);
+    }
+
+    @Test
+    @DisplayName("binding an unused email keeps the original password account")
+    void bindEmailKeepsOriginalAccount() {
+        UserEntity currentUser = new UserEntity();
+        currentUser.setId(2L);
+        currentUser.setUsername("alice");
+        currentUser.setDisplayName("Alice");
+        when(userRepository.findById(2L)).thenReturn(Optional.of(currentUser));
+        when(userRepository.findByEmail("demo@qq.com")).thenReturn(Optional.empty());
+        when(userRepository.save(currentUser)).thenReturn(currentUser);
+
+        CurrentUserDTO result = authService.bindEmail(2L, "demo@qq.com");
+
+        assertThat(result.id()).isEqualTo(2L);
+        assertThat(result.username()).isEqualTo("alice");
+        assertThat(result.email()).isEqualTo("demo@qq.com");
+        verify(emailAccountMergeService, never()).retireEmptyGeneratedAccount(any(), any());
+    }
+
+    @Test
+    @DisplayName("binding retires an empty generated email account before keeping the original account")
+    void bindEmailRetiresGeneratedAccount() {
+        UserEntity currentUser = new UserEntity();
+        currentUser.setId(2L);
+        currentUser.setUsername("alice");
+        currentUser.setDisplayName("Alice");
+
+        UserEntity generatedUser = new UserEntity();
+        generatedUser.setId(6L);
+        generatedUser.setUsername("mail_generated");
+        generatedUser.setEmail("demo@qq.com");
+
+        when(userRepository.findById(2L)).thenReturn(Optional.of(currentUser));
+        when(userRepository.findByEmail("demo@qq.com")).thenReturn(Optional.of(generatedUser));
+        when(userRepository.save(currentUser)).thenReturn(currentUser);
+
+        CurrentUserDTO result = authService.bindEmail(2L, "demo@qq.com");
+
+        verify(emailAccountMergeService).retireEmptyGeneratedAccount(generatedUser, "demo@qq.com");
+        assertThat(result.id()).isEqualTo(2L);
+        assertThat(result.email()).isEqualTo("demo@qq.com");
     }
 
     @Test

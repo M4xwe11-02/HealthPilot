@@ -162,6 +162,29 @@ documents from the old shared workspace are re-parsed from object storage and
 re-indexed automatically the first time they are selected for a LightRAG query.
 Compose pins the verified multi-architecture LightRAG image version to `v1.5.5`.
 
+### Optional QQ Mail Login
+
+The passwordless email login is intended for low-volume demos and is disabled
+until SMTP credentials are provided. In QQ Mail, open **Settings → Account**,
+enable the SMTP service, and generate an authorization code. Then configure:
+
+```env
+APP_EMAIL_LOGIN_ENABLED=true
+MAIL_HOST=smtp.qq.com
+MAIL_PORT=465
+MAIL_USERNAME=your_qq_number@qq.com
+MAIL_AUTH_CODE=your_qq_mail_authorization_code
+MAIL_FROM=your_qq_number@qq.com
+MAIL_SENDER_NAME=Health Guard
+```
+
+`MAIL_AUTH_CODE` is the SMTP authorization code, not the QQ account password.
+The default policy uses a six-digit code valid for five minutes, a 60-second
+resend cooldown, five sends per email per hour, and five verification attempts.
+Username/password registration and login remain available without an email.
+Signed-in users can optionally bind or replace an email from the account menu;
+binding adds email-code login to the same account and does not disable its password.
+
 ### Launch Infrastructure
 
 ```bash
@@ -228,6 +251,10 @@ Open **http://localhost:5173**. The development admin account is initialized as 
 | `APP_LIGHTRAG_API_KEY` | Optional | Shared key for authenticated LightRAG HTTP calls |
 | `LIGHTRAG_MAX_WORKSPACE_PROCESSES` | Optional | Maximum resident per-user LightRAG processes (default `16`) |
 | `LIGHTRAG_WORKSPACE_IDLE_TIMEOUT` | Optional | Seconds before an idle user process is stopped (default `1800`) |
+| `APP_EMAIL_LOGIN_ENABLED` | For email login | Enables passwordless email login after SMTP is configured |
+| `MAIL_USERNAME` | For email login | Full QQ Mail address used as the SMTP username |
+| `MAIL_AUTH_CODE` | For email login | QQ Mail SMTP authorization code; never the QQ account password |
+| `MAIL_FROM` | For email login | Sender address, normally the same value as `MAIL_USERNAME` |
 | `LLM_BINDING_API_KEY` | For LightRAG | LightRAG LLM provider key |
 | `EMBEDDING_BINDING_API_KEY` | For LightRAG | LightRAG embedding provider key |
 

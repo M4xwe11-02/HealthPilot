@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { authApi, CurrentUser, LoginPayload, RegisterPayload } from '../api/auth';
+import { authApi, CurrentUser, EmailLoginPayload, LoginPayload, RegisterPayload } from '../api/auth';
 import { AUTH_TOKEN_EVENT, clearAuthToken, getAuthToken, setAuthToken } from '../api/request';
 
 interface AuthContextValue {
@@ -7,6 +7,8 @@ interface AuthContextValue {
   loading: boolean;
   isAuthenticated: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  loginWithEmail: (payload: EmailLoginPayload) => Promise<void>;
+  bindEmail: (payload: EmailLoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -98,6 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthToken(response.token);
       setUser(response.user);
       storeUser(response.user);
+    },
+    async loginWithEmail(payload) {
+      const response = await authApi.loginWithEmail(payload);
+      setAuthToken(response.token);
+      setUser(response.user);
+      storeUser(response.user);
+    },
+    async bindEmail(payload) {
+      const currentUser = await authApi.bindEmail(payload);
+      setUser(currentUser);
+      storeUser(currentUser);
     },
     async register(payload) {
       const response = await authApi.register(payload);

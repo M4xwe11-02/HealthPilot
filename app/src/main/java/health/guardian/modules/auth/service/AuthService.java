@@ -29,6 +29,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthSessionRepository sessionRepository;
     private final OwnershipMigrationService ownershipMigrationService;
+    private final EmailAccountMergeService emailAccountMergeService;
     private final PasswordHasher passwordHasher;
     private final AuthTokenService tokenService;
     private final Clock clock;
@@ -75,6 +76,27 @@ public class AuthService {
         return issueSession(user);
     }
 
+    @Transactional
+    public AuthResponse loginWithEmail(String email) {
+        UserEntity user = userRepository.findByEmail(email)
+            .orElseGet(() -> createEmailUser(email));
+        return issueSession(user);
+    }
+
+    @Transactional
+    public CurrentUserDTO bindEmail(Long userId, String email) {
+        UserEntity currentUser = userRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "登录状态已失效，请重新登录"));
+
+        Optional<UserEntity> emailOwner = userRepository.findByEmail(email);
+        if (emailOwner.isPresent() && !emailOwner.get().getId().equals(currentUser.getId())) {
+            emailAccountMergeService.retireEmptyGeneratedAccount(emailOwner.get(), email);
+        }
+
+        currentUser.setEmail(email);
+        return CurrentUserDTO.from(userRepository.save(currentUser));
+    }
+
     @Transactional(readOnly = true)
     public Optional<CurrentUserDTO> authenticate(String token) {
         if (token == null || token.isBlank()) {
@@ -110,6 +132,31 @@ public class AuthService {
         sessionRepository.save(session);
 
         return new AuthResponse(token, CurrentUserDTO.from(user));
+    }
+
+    private UserEntity createEmailUser(String email) {
+        boolean firstUser = userRepository.count() == 0;
+        String identityHash = tokenService.hashToken(email);
+        String username = "mail_" + identityHash.substring(0, 24);
+        if (userRepository.existsByUsername(username)) {
+            username = "mail_" + identityHash.substring(0, 40);
+        }
+
+        PasswordHasher.PasswordHash passwordHash = passwordHasher.hash(tokenService.issueToken());
+        String localPart = email.substring(0, email.indexOf('@'));
+
+        UserEntity user = new UserEntity();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setDisplayName(localPart.substring(0, Math.min(localPart.length(), 100)));
+        user.setPasswordSalt(passwordHash.salt());
+        user.setPasswordHash(passwordHash.hash());
+
+        UserEntity saved = userRepository.save(user);
+        if (firstUser) {
+            ownershipMigrationService.claimUnownedData(saved);
+        }
+        return saved;
     }
 
     private String normalizeUsername(String username) {

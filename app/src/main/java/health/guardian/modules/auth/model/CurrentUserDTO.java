@@ -4,9 +4,16 @@ public record CurrentUserDTO(
     Long id,
     String username,
     String displayName,
-    boolean isAdmin
+    boolean isAdmin,
+    String email
 ) {
     public static CurrentUserDTO from(UserEntity user) {
-        return new CurrentUserDTO(user.getId(), user.getUsername(), user.getDisplayName(), user.isAdmin());
+        return new CurrentUserDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getDisplayName(),
+            user.isAdmin(),
+            user.getEmail()
+        );
     }
 }

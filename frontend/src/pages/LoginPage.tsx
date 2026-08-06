@@ -1,8 +1,9 @@
-import {FormEvent, useState} from 'react';
+import {FormEvent, useEffect, useState} from 'react';
 import {Navigate, useLocation, useNavigate} from 'react-router-dom';
-import {AlertCircle, Activity, KeyRound, UserRound} from 'lucide-react';
+import {AlertCircle, Activity, CheckCircle2, KeyRound, Loader2, Mail, Send, ShieldCheck, UserRound} from 'lucide-react';
 import {motion, AnimatePresence} from 'framer-motion';
 import {useAuth} from '../auth/AuthContext';
+import {authApi} from '../api/auth';
 import LogoMark from '../components/LogoMark';
 
 /* ── Decorative background SVG for left panel ── */
@@ -46,17 +47,30 @@ function GlassCard({label, value}: {label: string; value: string}) {
 }
 
 export default function LoginPage() {
-  const {isAuthenticated, login, register} = useAuth();
+  const {isAuthenticated, login, loginWithEmail, register} = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as {from?: {pathname?: string}} | null)?.from?.pathname || '/upload';
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'email' | 'login' | 'register'>('email');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [sendingCode, setSendingCode] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
+  const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendSeconds]);
 
   if (isAuthenticated) return <Navigate to={from} replace />;
 
@@ -65,7 +79,9 @@ export default function LoginPage() {
     setError('');
     setSubmitting(true);
     try {
-      if (mode === 'login') {
+      if (mode === 'email') {
+        await loginWithEmail({email, code});
+      } else if (mode === 'login') {
         await login({username, password});
       } else {
         await register({username, password, displayName});
@@ -75,6 +91,25 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : '操作失败');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSendCode = async () => {
+    if (!email.trim()) {
+      setError('请先输入邮箱');
+      return;
+    }
+    setError('');
+    setNotice('');
+    setSendingCode(true);
+    try {
+      await authApi.sendEmailCode(email);
+      setResendSeconds(60);
+      setNotice('验证码已发送，请检查邮箱');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '验证码发送失败');
+    } finally {
+      setSendingCode(false);
     }
   };
 
@@ -246,7 +281,7 @@ export default function LoginPage() {
           </div>
 
           {/* Heading with Heartbeat */}
-          <div className="mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4">
+          <div className="mb-6 flex items-center gap-3 sm:gap-4">
             <motion.div
               animate={{ scale: [1, 1.15, 1, 1.15, 1] }}
               transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
@@ -256,93 +291,173 @@ export default function LoginPage() {
             </motion.div>
             <div>
               <h1 className="text-[1.65rem] sm:text-[2rem] font-extrabold text-primary-600 dark:text-primary-400 tracking-tight leading-none">
-                {mode === 'login' ? '欢迎回来' : '加入我们'}
+                {mode === 'email' ? '邮箱登录' : mode === 'login' ? '欢迎回来' : '加入我们'}
               </h1>
               <p className="text-slate-500 dark:text-forest-300 mt-2 text-sm font-medium">
-                {mode === 'login' ? '登录以继续您的健康管理之旅' : '注册开启您的智能健康管理'}
+                {mode === 'email'
+                  ? '验证邮箱以继续您的健康管理之旅'
+                  : mode === 'login'
+                    ? '登录以继续您的健康管理之旅'
+                    : '注册开启您的智能健康管理'}
               </p>
             </div>
           </div>
 
+          <div className="mb-6 grid h-11 grid-cols-2 rounded-xl bg-slate-100 p-1 dark:bg-forest-800">
+            <button
+              type="button"
+              onClick={() => {setMode('email'); setError(''); setNotice('');}}
+              className={`flex min-w-0 items-center justify-center gap-2 rounded-lg text-sm font-bold transition-all ${
+                mode === 'email'
+                  ? 'bg-white text-primary-600 shadow-sm dark:bg-forest-700 dark:text-primary-400'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-forest-300 dark:hover:text-white'
+              }`}
+            >
+              <Mail className="h-4 w-4 flex-shrink-0" />
+              <span>邮箱验证码</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {setMode('login'); setError(''); setNotice('');}}
+              className={`flex min-w-0 items-center justify-center gap-2 rounded-lg text-sm font-bold transition-all ${
+                mode !== 'email'
+                  ? 'bg-white text-primary-600 shadow-sm dark:bg-forest-700 dark:text-primary-400'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-forest-300 dark:hover:text-white'
+              }`}
+            >
+              <KeyRound className="h-4 w-4 flex-shrink-0" />
+              <span>密码登录</span>
+            </button>
+          </div>
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-
-            <label className="block">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">用户名</span>
-              <div className="mt-2 flex items-center gap-3 rounded-2xl
-                border border-slate-200 dark:border-forest-600
-                bg-slate-50/50 dark:bg-forest-800/50 px-4
-                focus-within:border-primary-400 dark:focus-within:border-primary-500
-                focus-within:bg-white dark:focus-within:bg-forest-800
-                focus-within:ring-4 focus-within:ring-primary-100 dark:focus-within:ring-primary-900/20
-                transition-all duration-300">
-                <UserRound className="w-5 h-5 text-slate-400 dark:text-forest-400 flex-shrink-0" />
-                <input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="h-14 flex-1 bg-transparent text-slate-900 dark:text-white outline-none
-                             placeholder:text-slate-400/80 dark:placeholder:text-forest-400 text-base font-medium"
-                  placeholder="输入您的用户名"
-                  autoComplete="username"
-                  required
-                />
-              </div>
-            </label>
-
-            <AnimatePresence>
-              {mode === 'register' && (
-                <motion.label
-                  className="block overflow-hidden"
-                  initial={{opacity: 0, height: 0}}
-                  animate={{opacity: 1, height: 'auto'}}
-                  exit={{opacity: 0, height: 0}}
-                  transition={{duration: 0.3, ease: [0.21, 0.47, 0.32, 0.98]}}
+            <AnimatePresence mode="wait" initial={false}>
+              {mode === 'email' ? (
+                <motion.div
+                  key="email-form"
+                  initial={{opacity: 0, x: -8}}
+                  animate={{opacity: 1, x: 0}}
+                  exit={{opacity: 0, x: 8}}
+                  transition={{duration: 0.2}}
+                  className="space-y-4 sm:space-y-5"
                 >
-                  <div className="pt-1">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">昵称</span>
-                    <input
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="mt-2 h-14 w-full rounded-2xl px-4 text-base font-medium outline-none
-                        border border-slate-200 dark:border-forest-600
-                        bg-slate-50/50 dark:bg-forest-800/50
-                        text-slate-900 dark:text-white
-                        placeholder:text-slate-400/80 dark:placeholder:text-forest-400
-                        focus:bg-white dark:focus:bg-forest-800
-                        focus:border-primary-400 dark:focus:border-primary-500
-                        focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900/20
-                        transition-all duration-300"
-                      placeholder="显示名称（可选）"
-                      autoComplete="name"
-                    />
-                  </div>
-                </motion.label>
+                  <label className="block">
+                    <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">邮箱</span>
+                    <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 transition-all duration-300 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:focus-within:border-primary-500 dark:focus-within:bg-forest-800 dark:focus-within:ring-primary-900/20">
+                      <Mail className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-forest-400" />
+                      <input
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        className="h-14 min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400/80 dark:text-white dark:placeholder:text-forest-400"
+                        type="email"
+                        placeholder="name@example.com"
+                        autoComplete="email"
+                        required
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
+                    <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">验证码</span>
+                    <div className="mt-2 flex gap-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 transition-all duration-300 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:focus-within:border-primary-500 dark:focus-within:bg-forest-800 dark:focus-within:ring-primary-900/20">
+                        <ShieldCheck className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-forest-400" />
+                        <input
+                          value={code}
+                          onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="h-14 min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400/80 dark:text-white dark:placeholder:text-forest-400"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          placeholder="6位验证码"
+                          pattern="\d{6}"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSendCode}
+                        disabled={sendingCode || resendSeconds > 0}
+                        className="flex h-14 w-[108px] flex-shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-primary-200 bg-primary-50 px-2 text-sm font-bold text-primary-700 transition-colors hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
+                      >
+                        {sendingCode
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <Send className="h-4 w-4" />}
+                        <span>{sendingCode ? '发送中' : resendSeconds > 0 ? `${resendSeconds}s` : '发送'}</span>
+                      </button>
+                    </div>
+                  </label>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="password-form"
+                  initial={{opacity: 0, x: 8}}
+                  animate={{opacity: 1, x: 0}}
+                  exit={{opacity: 0, x: -8}}
+                  transition={{duration: 0.2}}
+                  className="space-y-4 sm:space-y-5"
+                >
+                  <label className="block">
+                    <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">用户名</span>
+                    <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 transition-all duration-300 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:focus-within:border-primary-500 dark:focus-within:bg-forest-800 dark:focus-within:ring-primary-900/20">
+                      <UserRound className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-forest-400" />
+                      <input
+                        value={username}
+                        onChange={(event) => setUsername(event.target.value)}
+                        className="h-14 min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400/80 dark:text-white dark:placeholder:text-forest-400"
+                        placeholder="输入您的用户名"
+                        autoComplete="username"
+                        required
+                      />
+                    </div>
+                  </label>
+
+                  {mode === 'register' && (
+                    <label className="block">
+                      <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">昵称</span>
+                      <input
+                        value={displayName}
+                        onChange={(event) => setDisplayName(event.target.value)}
+                        className="mt-2 h-14 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 text-base font-medium text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-400/80 focus:border-primary-400 focus:bg-white focus:ring-4 focus:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:text-white dark:placeholder:text-forest-400 dark:focus:border-primary-500 dark:focus:bg-forest-800 dark:focus:ring-primary-900/20"
+                        placeholder="显示名称（可选）"
+                        autoComplete="name"
+                      />
+                    </label>
+                  )}
+
+                  <label className="block">
+                    <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">密码</span>
+                    <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 transition-all duration-300 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:focus-within:border-primary-500 dark:focus-within:bg-forest-800 dark:focus-within:ring-primary-900/20">
+                      <KeyRound className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-forest-400" />
+                      <input
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        className="h-14 min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400/80 dark:text-white dark:placeholder:text-forest-400"
+                        type="password"
+                        placeholder="输入密码 (至少4位)"
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        required
+                        minLength={4}
+                      />
+                    </div>
+                  </label>
+                </motion.div>
               )}
             </AnimatePresence>
 
-            <label className="block">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">密码</span>
-              <div className="mt-2 flex items-center gap-3 rounded-2xl
-                border border-slate-200 dark:border-forest-600
-                bg-slate-50/50 dark:bg-forest-800/50 px-4
-                focus-within:border-primary-400 dark:focus-within:border-primary-500
-                focus-within:bg-white dark:focus-within:bg-forest-800
-                focus-within:ring-4 focus-within:ring-primary-100 dark:focus-within:ring-primary-900/20
-                transition-all duration-300">
-                <KeyRound className="w-5 h-5 text-slate-400 dark:text-forest-400 flex-shrink-0" />
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-14 flex-1 bg-transparent text-slate-900 dark:text-white outline-none
-                             placeholder:text-slate-400/80 dark:placeholder:text-forest-400 text-base font-medium"
-                  type="password"
-                  placeholder="输入密码 (至少4位)"
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  required
-                  minLength={4}
-                />
-              </div>
-            </label>
+            <AnimatePresence>
+              {notice && (
+                <motion.div
+                  initial={{opacity: 0, y: -6}}
+                  animate={{opacity: 1, y: 0}}
+                  exit={{opacity: 0, y: -6}}
+                  className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300"
+                >
+                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                  <span>{notice}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <AnimatePresence>
               {error && (
@@ -371,21 +486,25 @@ export default function LoginPage() {
               whileHover={{scale: submitting ? 1 : 1.015}}
               whileTap={{scale: submitting ? 1 : 0.985}}
             >
-              {submitting ? '处理中...' : mode === 'login' ? '立即登录' : '注册并进入'}
+              <span className="flex items-center justify-center gap-2">
+                {submitting && <Loader2 className="h-5 w-5 animate-spin" />}
+                {submitting ? '处理中...' : mode === 'register' ? '注册并进入' : '立即登录'}
+              </span>
             </motion.button>
           </form>
 
           {/* Mode switch */}
-          <div className="mt-8 text-center">
-            <button
-              type="button"
-              onClick={() => {setMode(mode === 'login' ? 'register' : 'login'); setError('');}}
-              className="text-sm font-bold text-slate-500 dark:text-slate-400
-                hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            >
-              {mode === 'login' ? '没有账号？点击去注册 →' : '已有账号？点击去登录 →'}
-            </button>
-          </div>
+          {mode !== 'email' && (
+            <div className="mt-8 text-center">
+              <button
+                type="button"
+                onClick={() => {setMode(mode === 'login' ? 'register' : 'login'); setError(''); setNotice('');}}
+                className="text-sm font-bold text-slate-500 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
+              >
+                {mode === 'login' ? '没有账号？点击去注册 →' : '已有账号？点击去登录 →'}
+              </button>
+            </div>
+          )}
         </motion.div>
       </main>
     </div>

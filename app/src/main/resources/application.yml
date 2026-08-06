@@ -48,6 +48,21 @@ spring:
           connectionPoolSize: 64
           subscriptionConnectionMinimumIdleSize: 1
           subscriptionConnectionPoolSize: 50
+
+  # QQ Mail SMTP. Use the authorization code generated in QQ Mail settings,
+  # never the QQ account password.
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_AUTH_CODE:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
   
   # Spring AI - 阿里云DashScope (OpenAI兼容模式)
   ai:
@@ -77,6 +92,16 @@ spring:
 
 # Application custom configuration
 app:
+  auth:
+    email:
+      enabled: ${APP_EMAIL_LOGIN_ENABLED:false}
+      from: ${MAIL_FROM:${MAIL_USERNAME:}}
+      sender-name: ${MAIL_SENDER_NAME:Health Guard}
+      code-ttl: ${APP_EMAIL_CODE_TTL:5m}
+      resend-cooldown: ${APP_EMAIL_RESEND_COOLDOWN:60s}
+      send-limit-window: ${APP_EMAIL_SEND_LIMIT_WINDOW:1h}
+      max-sends-per-window: ${APP_EMAIL_MAX_SENDS_PER_WINDOW:5}
+      max-verify-attempts: ${APP_EMAIL_MAX_VERIFY_ATTEMPTS:5}
   ai:
     # 结构化输出重试次数（用于 BeanOutputConverter 解析失败时的业务层重试）
     structured-max-attempts: ${APP_AI_STRUCTURED_MAX_ATTEMPTS:2}

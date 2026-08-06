@@ -43,7 +43,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        CurrentUserContext.setCurrentUser(currentUser.get());
+        CurrentUserDTO authenticatedUser = currentUser.get();
+        CurrentUserContext.setCurrentUser(authenticatedUser);
+        request.setAttribute("userId", authenticatedUser.id());
         return true;
     }
 
@@ -56,6 +58,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         return "/api/auth/register".equals(path)
             || "/api/auth/login".equals(path)
+            || "/api/auth/email/code".equals(path)
+            || "/api/auth/email/login".equals(path)
             || path.startsWith("/api/public-docs");
     }
 

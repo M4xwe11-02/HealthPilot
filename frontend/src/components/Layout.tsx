@@ -5,6 +5,7 @@ import {
   Database,
   FileStack,
   LogOut,
+  Mail,
   Menu,
   MessageSquare,
   Moon,
@@ -19,6 +20,7 @@ import {useTheme} from '../hooks/useTheme';
 import {useAuth} from '../auth/AuthContext';
 import {useState} from 'react';
 import LogoMark from './LogoMark';
+import EmailBindingDialog from './EmailBindingDialog';
 import bgImage from '../background.png';
 
 interface NavItem {
@@ -70,6 +72,7 @@ export default function Layout() {
   const {user, logout}       = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [emailBindingOpen, setEmailBindingOpen] = useState(false);
 
   const NAV_GROUPS: NavGroup[] = user?.isAdmin
     ? BASE_NAV_GROUPS.map(g =>
@@ -281,6 +284,18 @@ export default function Layout() {
                       </div>
                       <button
                         type="button"
+                        onClick={() => { setEmailBindingOpen(true); setUserMenuOpen(false); }}
+                        className="w-full flex items-center gap-2 px-3.5 py-2 text-[13px]
+                          text-slate-600 dark:text-slate-300
+                          hover:bg-primary-50 dark:hover:bg-primary-900/15
+                          hover:text-primary-700 dark:hover:text-primary-400
+                          transition-colors"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        {user?.email ? '更换绑定邮箱' : '绑定邮箱'}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => { void logout(); setUserMenuOpen(false); }}
                         className="w-full flex items-center gap-2 px-3.5 py-2 text-[13px]
                           text-slate-600 dark:text-slate-400
@@ -431,6 +446,14 @@ export default function Layout() {
                 ))}
                 <button
                   type="button"
+                  onClick={() => { setEmailBindingOpen(true); setMobileMoreOpen(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-forest-100 active:bg-slate-100 dark:active:bg-forest-700"
+                >
+                  <Mail className="w-5 h-5" />
+                  {user?.email ? '更换绑定邮箱' : '绑定邮箱'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => { void logout(); setMobileMoreOpen(false); }}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 active:bg-red-50 dark:active:bg-red-900/15"
                 >
@@ -443,6 +466,7 @@ export default function Layout() {
           </>
         )}
       </AnimatePresence>
+      <EmailBindingDialog open={emailBindingOpen} onClose={() => setEmailBindingOpen(false)} />
     </div>
   );
 }

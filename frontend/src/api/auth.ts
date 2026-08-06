@@ -5,6 +5,7 @@ export interface CurrentUser {
   username: string;
   displayName: string;
   isAdmin?: boolean;
+  email?: string | null;
 }
 
 export interface AuthResponse {
@@ -21,6 +22,11 @@ export interface RegisterPayload extends LoginPayload {
   displayName?: string;
 }
 
+export interface EmailLoginPayload {
+  email: string;
+  code: string;
+}
+
 export const authApi = {
   login(payload: LoginPayload): Promise<AuthResponse> {
     return request.post<AuthResponse>('/api/auth/login', payload);
@@ -28,6 +34,18 @@ export const authApi = {
 
   register(payload: RegisterPayload): Promise<AuthResponse> {
     return request.post<AuthResponse>('/api/auth/register', payload);
+  },
+
+  sendEmailCode(email: string): Promise<void> {
+    return request.post<void>('/api/auth/email/code', {email});
+  },
+
+  loginWithEmail(payload: EmailLoginPayload): Promise<AuthResponse> {
+    return request.post<AuthResponse>('/api/auth/email/login', payload);
+  },
+
+  bindEmail(payload: EmailLoginPayload): Promise<CurrentUser> {
+    return request.post<CurrentUser>('/api/auth/email/bind', payload);
   },
 
   me(): Promise<CurrentUser> {
