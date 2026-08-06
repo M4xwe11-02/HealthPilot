@@ -1,4 +1,4 @@
-"""Route each application user to an isolated LightRAG server process."""
+"""Route each application knowledge base to an isolated LightRAG server process."""
 
 from __future__ import annotations
 
@@ -20,7 +20,8 @@ from typing import BinaryIO
 
 
 LOG = logging.getLogger("lightrag-workspace-gateway")
-WORKSPACE_PATTERN = re.compile(r"user_[1-9][0-9]*\Z")
+# Keep the legacy user-only form readable while existing documents migrate.
+WORKSPACE_PATTERN = re.compile(r"user_[1-9][0-9]*(?:_kb_[1-9][0-9]*)?\Z")
 HOP_BY_HOP_HEADERS = {
     "connection",
     "keep-alive",

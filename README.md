@@ -154,12 +154,15 @@ EMBEDDING_BINDING_API_KEY=your_bailian_api_key_here
 
 The root `.env` enables the backend-to-LightRAG integration by default through
 `APP_LIGHTRAG_ENABLED=true` and `APP_LIGHTRAG_BASE_URL=http://localhost:9621`.
-The LightRAG workspace gateway maps `LIGHTRAG-WORKSPACE=user_<id>` to a separate
-LightRAG process and storage namespace for every application user. It rejects
+The LightRAG workspace gateway maps
+`LIGHTRAG-WORKSPACE=user_<user-id>_kb_<knowledge-base-id>` to a separate
+LightRAG process and storage namespace for every knowledge base. It rejects
 business requests without a valid workspace, while the backend also checks
-returned references against the selected knowledge-base sources. Existing
-documents from the old shared workspace are re-parsed from object storage and
-re-indexed automatically the first time they are selected for a LightRAG query.
+returned references against the selected knowledge-base source. Multi-selection
+queries each isolated workspace in turn and combines the answers into one
+response. Existing documents from legacy shared or user-only workspaces are
+re-parsed from object storage and re-indexed automatically the first time they
+are selected for a LightRAG query.
 Compose pins the verified multi-architecture LightRAG image version to `v1.5.5`.
 
 ### Optional QQ Mail Login
@@ -249,7 +252,7 @@ Open **http://localhost:5173**. The development admin account is initialized as 
 | `APP_LIGHTRAG_ENABLED` | For graph RAG | Enables LightRAG-backed retrieval |
 | `APP_LIGHTRAG_BASE_URL` | For graph RAG | Backend URL for the LightRAG HTTP service |
 | `APP_LIGHTRAG_API_KEY` | Optional | Shared key for authenticated LightRAG HTTP calls |
-| `LIGHTRAG_MAX_WORKSPACE_PROCESSES` | Optional | Maximum resident per-user LightRAG processes (default `16`) |
+| `LIGHTRAG_MAX_WORKSPACE_PROCESSES` | Optional | Maximum resident per-knowledge-base LightRAG processes (default `16`) |
 | `LIGHTRAG_WORKSPACE_IDLE_TIMEOUT` | Optional | Seconds before an idle user process is stopped (default `1800`) |
 | `APP_EMAIL_LOGIN_ENABLED` | For email login | Enables passwordless email login after SMTP is configured |
 | `MAIL_USERNAME` | For email login | Full QQ Mail address used as the SMTP username |

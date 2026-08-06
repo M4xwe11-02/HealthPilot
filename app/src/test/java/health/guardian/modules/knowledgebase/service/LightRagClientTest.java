@@ -42,8 +42,8 @@ class LightRagClientTest {
 
         LightRagClient.LightRagQueryResult result = client.query(
             "question",
-            "user_7",
-            List.of("knowledge-base/42/")
+            "user_7_kb_42",
+            List.of("knowledge-base/42/doc.txt")
         );
 
         assertEquals("ok", result.response());
@@ -51,7 +51,7 @@ class LightRagClientTest {
         assertNotNull(request);
         assertEquals("/query", request.path());
         assertEquals("POST", request.method());
-        assertEquals("user_7", request.workspace());
+        assertEquals("user_7_kb_42", request.workspace());
         assertEquals("secret-key", request.apiKey());
         assertTrue(request.body().contains("\"query\":\"question\""));
     }
@@ -65,8 +65,8 @@ class LightRagClientTest {
 
         LightRagClient.LightRagQueryResult result = client.query(
             "question",
-            "user_7",
-            List.of("knowledge-base/42/")
+            "user_7_kb_42",
+            List.of("knowledge-base/42/doc.txt")
         );
 
         assertTrue(result.response().contains("拦截"));
@@ -82,8 +82,8 @@ class LightRagClientTest {
 
         LightRagClient.LightRagQueryResult result = client.query(
             "question",
-            "user_7",
-            List.of("knowledge-base/42/")
+            "user_7_kb_42",
+            List.of("knowledge-base/42/doc.txt")
         );
 
         assertTrue(result.response().contains("拦截"));
@@ -100,8 +100,8 @@ class LightRagClientTest {
 
         List<String> chunks = client.queryStream(
                 "question",
-                "user_7",
-                List.of("knowledge-base/42/")
+                "user_7_kb_42",
+                List.of("knowledge-base/42/doc.txt")
             )
             .collectList()
             .block(Duration.ofSeconds(3));
@@ -110,6 +110,58 @@ class LightRagClientTest {
         String joined = String.join("", chunks);
         assertTrue(joined.contains("拦截"));
         assertFalse(joined.contains("leaked stream"));
+    }
+
+    @Test
+    @DisplayName("stream releases buffered content after an allowed basename reference arrives")
+    void streamAcceptsSelectedDocumentBasename() throws Exception {
+        LightRagClient client = startClientWithResponse("""
+            {"response":"selected stream"}
+            {"references":[{"file_path":"doc.txt"}]}
+            """);
+
+        List<String> chunks = client.queryStream(
+                "question",
+                "user_7_kb_42",
+                List.of("knowledge-base/42/doc.txt")
+            )
+            .collectList()
+            .block(Duration.ofSeconds(3));
+
+        assertEquals(List.of("selected stream"), chunks);
+    }
+
+    @Test
+    @DisplayName("query accepts LightRAG basename references inside an isolated knowledge-base workspace")
+    void queryAcceptsSelectedDocumentBasename() throws Exception {
+        LightRagClient client = startClientWithResponse("""
+            {"response":"selected answer","references":[{"file_path":"doc.txt"}]}
+            """);
+
+        LightRagClient.LightRagQueryResult result = client.query(
+            "question",
+            "user_7_kb_42",
+            List.of("knowledge-base/42/doc.txt")
+        );
+
+        assertEquals("selected answer", result.response());
+    }
+
+    @Test
+    @DisplayName("query rejects a different basename even inside an isolated workspace")
+    void queryRejectsDifferentDocumentBasename() throws Exception {
+        LightRagClient client = startClientWithResponse("""
+            {"response":"wrong answer","references":[{"file_path":"other.txt"}]}
+            """);
+
+        LightRagClient.LightRagQueryResult result = client.query(
+            "question",
+            "user_7_kb_42",
+            List.of("knowledge-base/42/doc.txt")
+        );
+
+        assertTrue(result.response().contains("拦截"));
+        assertFalse(result.response().contains("wrong answer"));
     }
 
     private LightRagClient startClientWithResponse(String responseBody) throws IOException {

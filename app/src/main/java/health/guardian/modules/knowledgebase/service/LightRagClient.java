@@ -36,7 +36,7 @@ public class LightRagClient {
     };
     private static final String WORKSPACE_HEADER = "LIGHTRAG-WORKSPACE";
     private static final String ISOLATION_BLOCKED_RESPONSE =
-        "抱歉，LightRAG 返回内容未能确认来自当前选择的知识库，已为避免串库被拦截。请切换到当前检索引擎，或等待 LightRAG 重新入库完成后再试。";
+        "抱歉，LightRAG 返回了当前知识库之外的引用，已为避免串库被拦截。请重试或切换到当前检索引擎。";
     private static final int STREAM_RESPONSE_BUFFER_LIMIT = 8192;
 
     private final LightRagProperties properties;
@@ -51,7 +51,7 @@ public class LightRagClient {
             .build();
     }
 
-    public LightRagQueryResult query(String question, String workspace, List<String> allowedSourcePrefixes) {
+    public LightRagQueryResult query(String question, String workspace, List<String> allowedReferenceSources) {
         ensureEnabled();
         try {
             HttpRequest request = buildJsonPost("/query", buildQueryPayload(question), workspace);
@@ -62,7 +62,7 @@ public class LightRagClient {
             ensureSuccess(response.statusCode(), response.body());
 
             Map<String, Object> body = objectMapper.readValue(response.body(), MAP_TYPE);
-            ReferenceCheck referenceCheck = validateReferences(body.get("references"), allowedSourcePrefixes);
+            ReferenceCheck referenceCheck = validateReferences(body.get("references"), allowedReferenceSources);
             if (!referenceCheck.allowed()) {
                 log.warn("LightRAG response blocked by source isolation: workspace={}, reason={}, rejectedPaths={}",
                     workspace, referenceCheck.reason(), referenceCheck.rejectedPaths());
@@ -78,7 +78,7 @@ public class LightRagClient {
         }
     }
 
-    public Flux<String> queryStream(String question, String workspace, List<String> allowedSourcePrefixes) {
+    public Flux<String> queryStream(String question, String workspace, List<String> allowedReferenceSources) {
         if (!properties.isEnabled()) {
             return Flux.just("【错误】LightRAG 未启用，请配置 APP_LIGHTRAG_ENABLED=true 和 APP_LIGHTRAG_BASE_URL。");
         }
@@ -88,7 +88,7 @@ public class LightRagClient {
             final Thread[] workerRef = new Thread[1];
 
             workerRef[0] = Thread.ofVirtual().name("lightrag-stream-", 0).start(() -> {
-                ReferenceGuard referenceGuard = new ReferenceGuard(allowedSourcePrefixes);
+                ReferenceGuard referenceGuard = new ReferenceGuard(allowedReferenceSources);
                 StringBuilder responseBuffer = new StringBuilder();
                 try {
                     HttpRequest request = buildJsonPost("/query/stream", buildQueryPayload(question), workspace);
@@ -438,9 +438,9 @@ public class LightRagClient {
         };
     }
 
-    private static ReferenceCheck validateReferences(Object references, List<String> allowedSourcePrefixes) {
-        List<String> normalizedAllowedPrefixes = normalizeAllowedPrefixes(allowedSourcePrefixes);
-        if (normalizedAllowedPrefixes.isEmpty()) {
+    private static ReferenceCheck validateReferences(Object references, List<String> allowedReferenceSources) {
+        List<String> normalizedAllowedSources = normalizeAllowedSources(allowedReferenceSources);
+        if (normalizedAllowedSources.isEmpty()) {
             return ReferenceCheck.allow();
         }
         if (!(references instanceof Iterable<?> refs)) {
@@ -456,7 +456,7 @@ public class LightRagClient {
                 rejectedPaths.add("<missing file_path>");
                 continue;
             }
-            if (!isAllowedReferencePath(path, normalizedAllowedPrefixes)) {
+            if (!isAllowedReferencePath(path, normalizedAllowedSources)) {
                 rejectedPaths.add(path);
             }
         }
@@ -470,12 +470,12 @@ public class LightRagClient {
         return ReferenceCheck.allow();
     }
 
-    private static List<String> normalizeAllowedPrefixes(List<String> allowedSourcePrefixes) {
-        if (allowedSourcePrefixes == null || allowedSourcePrefixes.isEmpty()) {
+    private static List<String> normalizeAllowedSources(List<String> allowedReferenceSources) {
+        if (allowedReferenceSources == null || allowedReferenceSources.isEmpty()) {
             return List.of();
         }
-        return allowedSourcePrefixes.stream()
-            .filter(prefix -> prefix != null && !prefix.isBlank())
+        return allowedReferenceSources.stream()
+            .filter(source -> source != null && !source.isBlank())
             .map(LightRagClient::normalizeReferencePath)
             .distinct()
             .toList();
@@ -494,14 +494,23 @@ public class LightRagClient {
         return reference == null ? null : reference.toString();
     }
 
-    private static boolean isAllowedReferencePath(String path, List<String> allowedPrefixes) {
+    private static boolean isAllowedReferencePath(String path, List<String> allowedSources) {
         String normalizedPath = normalizeReferencePath(path);
         int sourceMarker = normalizedPath.indexOf("knowledge-base/");
         if (sourceMarker >= 0) {
             normalizedPath = normalizedPath.substring(sourceMarker);
         }
         String canonicalPath = normalizedPath;
-        return allowedPrefixes.stream().anyMatch(canonicalPath::startsWith);
+        String referenceFilename = filenameOf(canonicalPath);
+        return allowedSources.stream().anyMatch(allowedSource ->
+            canonicalPath.equals(allowedSource)
+                || referenceFilename.equals(filenameOf(allowedSource))
+        );
+    }
+
+    private static String filenameOf(String path) {
+        int lastSlash = path.lastIndexOf('/');
+        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
     }
 
     private static String normalizeReferencePath(String value) {
@@ -518,17 +527,17 @@ public class LightRagClient {
     }
 
     private static final class ReferenceGuard {
-        private final List<String> allowedSourcePrefixes;
+        private final List<String> allowedReferenceSources;
         private boolean validatedReferences;
         private boolean responseSeen;
 
-        private ReferenceGuard(List<String> allowedSourcePrefixes) {
-            this.allowedSourcePrefixes = normalizeAllowedPrefixes(allowedSourcePrefixes);
-            this.validatedReferences = this.allowedSourcePrefixes.isEmpty();
+        private ReferenceGuard(List<String> allowedReferenceSources) {
+            this.allowedReferenceSources = normalizeAllowedSources(allowedReferenceSources);
+            this.validatedReferences = this.allowedReferenceSources.isEmpty();
         }
 
         private ReferenceCheck validate(Object references) {
-            ReferenceCheck check = validateReferences(references, allowedSourcePrefixes);
+            ReferenceCheck check = validateReferences(references, allowedReferenceSources);
             if (check.allowed()) {
                 validatedReferences = true;
             }

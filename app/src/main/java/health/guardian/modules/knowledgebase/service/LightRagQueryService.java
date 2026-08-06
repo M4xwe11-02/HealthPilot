@@ -10,7 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Knowledge-base query service backed by an external LightRAG server.
@@ -37,12 +40,10 @@ public class LightRagQueryService {
         }
         countService.updateQuestionCounts(knowledgeBaseIds);
 
-        LightRagClient.LightRagQueryResult result = lightRagClient.query(
-            request.question(),
-            readiness.workspace(),
-            lightRagScopeService.allowedSourcePrefixes(readiness.knowledgeBases())
-        );
-        return buildResponse(knowledgeBaseIds, result.response());
+        List<KnowledgeBaseAnswer> answers = readiness.knowledgeBases().stream()
+            .map(knowledgeBase -> queryOneKnowledgeBase(knowledgeBase, request.question()))
+            .toList();
+        return buildResponse(knowledgeBaseIds, combineAnswers(answers));
     }
 
     public Flux<String> answerQuestionStream(List<Long> knowledgeBaseIds, String question) {
@@ -51,15 +52,16 @@ public class LightRagQueryService {
             return Flux.just(readiness.message());
         }
         countService.updateQuestionCounts(knowledgeBaseIds);
-        return lightRagClient.queryStream(
-                question,
-                readiness.workspace(),
-                lightRagScopeService.allowedSourcePrefixes(readiness.knowledgeBases())
-            )
-            .onErrorResume(e -> {
-                log.error("LightRAG streaming query failed: kbIds={}, error={}", knowledgeBaseIds, e.getMessage(), e);
-                return Flux.just("【错误】LightRAG 查询失败：" + e.getMessage());
-            });
+        if (readiness.knowledgeBases().size() == 1) {
+            return queryOneKnowledgeBaseStream(readiness.knowledgeBases().getFirst(), question);
+        }
+
+        return Flux.fromIterable(readiness.knowledgeBases())
+            .concatMap(knowledgeBase -> Flux.concat(
+                Flux.just("### " + knowledgeBase.getName() + "\n\n"),
+                queryOneKnowledgeBaseStream(knowledgeBase, question),
+                Flux.just("\n\n")
+            ));
     }
 
     private ReadinessResult validateReadiness(List<Long> knowledgeBaseIds) {
@@ -69,17 +71,23 @@ public class LightRagQueryService {
 
         Long ownerId = currentUserService.requireCurrentUserId();
         List<Long> uniqueIds = knowledgeBaseIds.stream().distinct().toList();
-        List<KnowledgeBaseEntity> entities = knowledgeBaseRepository.findAllByOwner_IdAndIdIn(
+        List<KnowledgeBaseEntity> foundEntities = knowledgeBaseRepository.findAllByOwner_IdAndIdIn(
             ownerId,
             uniqueIds
         );
-        if (entities.size() != uniqueIds.size()) {
+        if (foundEntities.size() != uniqueIds.size()) {
             return ReadinessResult.notReady("知识库不存在或无权访问。");
         }
+        Map<Long, KnowledgeBaseEntity> entitiesById = foundEntities.stream().collect(Collectors.toMap(
+            KnowledgeBaseEntity::getId,
+            entity -> entity,
+            (left, right) -> left,
+            LinkedHashMap::new
+        ));
+        List<KnowledgeBaseEntity> entities = uniqueIds.stream().map(entitiesById::get).toList();
 
-        String workspace = lightRagScopeService.currentUserWorkspace();
         List<KnowledgeBaseEntity> legacyWorkspaceEntities = entities.stream()
-            .filter(entity -> !workspace.equals(entity.getLightRagWorkspace()))
+            .filter(entity -> !lightRagScopeService.workspaceFor(entity).equals(entity.getLightRagWorkspace()))
             .toList();
         if (!legacyWorkspaceEntities.isEmpty()) {
             migrationService.migrateAsync(legacyWorkspaceEntities);
@@ -87,7 +95,7 @@ public class LightRagQueryService {
                 .map(KnowledgeBaseEntity::getName)
                 .toList();
             return ReadinessResult.notReady(
-                "【提示】正在将旧知识库迁移到当前用户的独立 LightRAG 空间，请稍后再试：" + String.join("、", names)
+                "【提示】正在将旧知识库迁移到独立 LightRAG 图谱，请稍后再试：" + String.join("、", names)
             );
         }
 
@@ -97,9 +105,45 @@ public class LightRagQueryService {
             .toList();
 
         if (notReadyNames.isEmpty()) {
-            return ReadinessResult.ready(entities, workspace);
+            return ReadinessResult.ready(entities);
         }
         return ReadinessResult.notReady("【提示】LightRAG 正在构建知识图谱，请稍后再试。未完成知识库：" + String.join("、", notReadyNames));
+    }
+
+    private KnowledgeBaseAnswer queryOneKnowledgeBase(KnowledgeBaseEntity knowledgeBase, String question) {
+        LightRagClient.LightRagQueryResult result = lightRagClient.query(
+            question,
+            lightRagScopeService.workspaceFor(knowledgeBase),
+            lightRagScopeService.allowedReferenceSources(List.of(knowledgeBase))
+        );
+        return new KnowledgeBaseAnswer(knowledgeBase.getName(), result.response());
+    }
+
+    private Flux<String> queryOneKnowledgeBaseStream(KnowledgeBaseEntity knowledgeBase, String question) {
+        return lightRagClient.queryStream(
+                question,
+                lightRagScopeService.workspaceFor(knowledgeBase),
+                lightRagScopeService.allowedReferenceSources(List.of(knowledgeBase))
+            )
+            .onErrorResume(error -> {
+                log.error(
+                    "LightRAG streaming query failed: kbId={}, workspace={}, error={}",
+                    knowledgeBase.getId(),
+                    lightRagScopeService.workspaceFor(knowledgeBase),
+                    error.getMessage(),
+                    error
+                );
+                return Flux.just("【错误】LightRAG 查询失败：" + error.getMessage());
+            });
+    }
+
+    private String combineAnswers(List<KnowledgeBaseAnswer> answers) {
+        if (answers.size() == 1) {
+            return answers.getFirst().answer();
+        }
+        return answers.stream()
+            .map(answer -> "### " + answer.knowledgeBaseName() + "\n\n" + answer.answer())
+            .collect(Collectors.joining("\n\n"));
     }
 
     private QueryResponse buildResponse(List<Long> knowledgeBaseIds, String answer) {
@@ -112,15 +156,17 @@ public class LightRagQueryService {
     private record ReadinessResult(
         boolean ready,
         List<KnowledgeBaseEntity> knowledgeBases,
-        String workspace,
         String message
     ) {
-        private static ReadinessResult ready(List<KnowledgeBaseEntity> knowledgeBases, String workspace) {
-            return new ReadinessResult(true, knowledgeBases, workspace, null);
+        private static ReadinessResult ready(List<KnowledgeBaseEntity> knowledgeBases) {
+            return new ReadinessResult(true, knowledgeBases, null);
         }
 
         private static ReadinessResult notReady(String message) {
-            return new ReadinessResult(false, List.of(), null, message);
+            return new ReadinessResult(false, List.of(), message);
         }
+    }
+
+    private record KnowledgeBaseAnswer(String knowledgeBaseName, String answer) {
     }
 }

@@ -12,7 +12,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Re-ingests legacy shared-workspace documents into their owner's isolated workspace.
+ * Re-ingests legacy user-workspace documents into isolated per-knowledge-base workspaces.
  */
 @Slf4j
 @Service
@@ -31,9 +31,23 @@ public class LightRagMigrationService {
         }
         knowledgeBases.stream()
             .filter(knowledgeBase -> knowledgeBase != null)
-            .map(KnowledgeBaseEntity::getId)
-            .filter(id -> id != null && migrationsInProgress.add(id))
-            .forEach(this::startMigration);
+            .filter(knowledgeBase -> knowledgeBase.getId() != null)
+            .filter(knowledgeBase -> migrationsInProgress.add(knowledgeBase.getId()))
+            .forEach(this::prepareAndStartMigration);
+    }
+
+    private void prepareAndStartMigration(KnowledgeBaseEntity knowledgeBase) {
+        Long knowledgeBaseId = knowledgeBase.getId();
+        try {
+            knowledgeBase.setLightRagStatus("MIGRATING");
+            knowledgeBase.setLightRagTrackId(null);
+            knowledgeBase.setLightRagError(null);
+            knowledgeBaseRepository.save(knowledgeBase);
+            startMigration(knowledgeBaseId);
+        } catch (Exception error) {
+            migrationsInProgress.remove(knowledgeBaseId);
+            throw error;
+        }
     }
 
     private void startMigration(Long knowledgeBaseId) {
@@ -50,16 +64,26 @@ public class LightRagMigrationService {
                 );
                 if (content == null || content.isBlank()) {
                     log.warn("LightRAG workspace migration skipped because content is blank: kbId={}", knowledgeBaseId);
+                    markMigrationFailed(knowledgeBaseId, "LightRAG migration content is blank");
                     return;
                 }
                 documentService.submitTextAsync(knowledgeBase, content);
                 log.info("LightRAG workspace migration submitted: kbId={}", knowledgeBaseId);
             } catch (Exception error) {
+                markMigrationFailed(knowledgeBaseId, error.getMessage());
                 log.warn("LightRAG workspace migration failed: kbId={}, error={}",
                     knowledgeBaseId, error.getMessage(), error);
             } finally {
                 migrationsInProgress.remove(knowledgeBaseId);
             }
+        });
+    }
+
+    private void markMigrationFailed(Long knowledgeBaseId, String error) {
+        knowledgeBaseRepository.findById(knowledgeBaseId).ifPresent(knowledgeBase -> {
+            knowledgeBase.setLightRagStatus("FAILED");
+            knowledgeBase.setLightRagError(error);
+            knowledgeBaseRepository.save(knowledgeBase);
         });
     }
 }

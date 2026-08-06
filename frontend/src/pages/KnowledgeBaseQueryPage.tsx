@@ -35,7 +35,7 @@ const LIGHTRAG_STATUS_POLL_INTERVAL_MS = 5000;
 
 function isLightRagProcessing(kb: KnowledgeBaseItem): boolean {
   const status = kb.lightRagStatus?.toUpperCase();
-  return status === 'SUBMITTING' || status === 'PROCESSING' || status === 'PENDING';
+  return status === 'MIGRATING' || status === 'SUBMITTING' || status === 'PROCESSING' || status === 'PENDING';
 }
 
 export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBaseQueryPageProps) {
@@ -117,6 +117,8 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
     void loadKnowledgeBases();
   }, [loadKnowledgeBases]);
 
+  const hasLightRagProcessing = knowledgeBases.some(isLightRagProcessing);
+
   useEffect(() => {
     if (ragProvider !== 'LIGHTRAG' || loadingList) {
       return;
@@ -164,7 +166,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         window.clearTimeout(timer);
       }
     };
-  }, [ragProvider, loadingList, fetchKnowledgeBases]);
+  }, [ragProvider, loadingList, fetchKnowledgeBases, hasLightRagProcessing]);
 
   const handleSearch = async () => {
     appliedSearchKeywordRef.current = searchKeyword.trim();
@@ -419,7 +421,10 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
           }
           updateAssistantMessage(fullContent);
           setLoading(false);
-          loadSessions();
+          void loadSessions();
+          if (ragProvider === 'LIGHTRAG') {
+            void loadKnowledgeBases();
+          }
         },
         (error: Error) => {
           console.error('流式查询失败:', error);
@@ -450,6 +455,7 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
         return '图谱失败';
       case 'PROCESSING':
       case 'SUBMITTING':
+      case 'MIGRATING':
         return '图谱处理中';
       case 'NOT_SUBMITTED':
         return '未入图谱';
