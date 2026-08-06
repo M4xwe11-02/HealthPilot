@@ -48,6 +48,9 @@ class AuthServiceTest {
     @Mock
     private EmailAccountMergeService emailAccountMergeService;
 
+    @Mock
+    private EmailVerificationService emailVerificationService;
+
     private PasswordHasher passwordHasher;
     private AuthTokenService tokenService;
     private AuthService authService;
@@ -61,6 +64,7 @@ class AuthServiceTest {
             sessionRepository,
             ownershipMigrationService,
             emailAccountMergeService,
+            emailVerificationService,
             passwordHasher,
             tokenService,
             CLOCK
@@ -80,7 +84,7 @@ class AuthServiceTest {
         when(sessionRepository.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AuthResponse response = authService.register(
-            new AuthRegisterRequest(" Alice ", "secret123", "Alice Zhang")
+            new AuthRegisterRequest(" Alice ", "secret123", "Alice Zhang", null, null)
         );
 
         assertThat(response.token()).isNotBlank();
@@ -89,8 +93,85 @@ class AuthServiceTest {
         ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getUsername()).isEqualTo("alice");
+        assertThat(userCaptor.getValue().getEmail()).isNull();
         assertThat(userCaptor.getValue().getPasswordHash()).isNotEqualTo("secret123");
         verify(ownershipMigrationService).claimUnownedData(userCaptor.getValue());
+        verify(emailVerificationService, never()).verifyAndConsume(any(), any());
+    }
+
+    @Test
+    @DisplayName("register verifies and binds an optional email to the password account")
+    void registerVerifiesAndBindsOptionalEmail() {
+        when(userRepository.existsByUsername("alice")).thenReturn(false);
+        when(emailVerificationService.verifyAndConsume(" Demo@QQ.com ", "123456"))
+            .thenReturn("demo@qq.com");
+        when(userRepository.findByEmail("demo@qq.com")).thenReturn(Optional.empty());
+        when(userRepository.count()).thenReturn(1L);
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> {
+            UserEntity user = invocation.getArgument(0);
+            user.setId(2L);
+            return user;
+        });
+        when(sessionRepository.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuthResponse response = authService.register(
+            new AuthRegisterRequest("Alice", "secret123", "Alice", " Demo@QQ.com ", "123456")
+        );
+
+        assertThat(response.user().email()).isEqualTo("demo@qq.com");
+        ArgumentCaptor<UserEntity> userCaptor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getEmail()).isEqualTo("demo@qq.com");
+        verify(emailVerificationService).verifyAndConsume(" Demo@QQ.com ", "123456");
+        verify(emailAccountMergeService, never()).retireEmptyGeneratedAccount(any(), any());
+    }
+
+    @Test
+    @DisplayName("register retires an empty generated email account before binding its email")
+    void registerRetiresGeneratedEmailAccount() {
+        UserEntity generatedUser = new UserEntity();
+        generatedUser.setId(6L);
+        generatedUser.setUsername("mail_generated");
+        generatedUser.setEmail("demo@qq.com");
+
+        when(userRepository.existsByUsername("alice")).thenReturn(false);
+        when(emailVerificationService.verifyAndConsume("demo@qq.com", "123456"))
+            .thenReturn("demo@qq.com");
+        when(userRepository.findByEmail("demo@qq.com")).thenReturn(Optional.of(generatedUser));
+        when(userRepository.count()).thenReturn(1L);
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> {
+            UserEntity user = invocation.getArgument(0);
+            user.setId(7L);
+            return user;
+        });
+        when(sessionRepository.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuthResponse response = authService.register(
+            new AuthRegisterRequest("alice", "secret123", "Alice", "demo@qq.com", "123456")
+        );
+
+        verify(emailAccountMergeService).retireEmptyGeneratedAccount(generatedUser, "demo@qq.com");
+        assertThat(response.user().id()).isEqualTo(7L);
+        assertThat(response.user().email()).isEqualTo("demo@qq.com");
+    }
+
+    @Test
+    @DisplayName("register rejects incomplete optional email verification fields")
+    void registerRejectsIncompleteOptionalEmailVerification() {
+        assertThatThrownBy(() -> authService.register(
+            new AuthRegisterRequest("alice", "secret123", "Alice", "demo@qq.com", null)
+        ))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("填写邮箱后必须输入验证码");
+
+        assertThatThrownBy(() -> authService.register(
+            new AuthRegisterRequest("alice", "secret123", "Alice", null, "123456")
+        ))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("请输入邮箱后再填写验证码");
+
+        verify(emailVerificationService, never()).verifyAndConsume(any(), any());
+        verify(userRepository, never()).save(any(UserEntity.class));
     }
 
     @Test

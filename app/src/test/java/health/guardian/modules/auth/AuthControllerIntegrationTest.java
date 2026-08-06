@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -69,6 +70,35 @@ class AuthControllerIntegrationTest {
             .andExpect(jsonPath("$.code", is(200)))
             .andExpect(jsonPath("$.data.token", is("token-1")))
             .andExpect(jsonPath("$.data.user.username", is("alice")));
+    }
+
+    @Test
+    @DisplayName("register accepts optional email verification fields")
+    void registerAcceptsOptionalEmailVerificationFields() throws Exception {
+        when(authService.register(any(AuthRegisterRequest.class)))
+            .thenReturn(new AuthResponse(
+                "token-email-register",
+                new CurrentUserDTO(2L, "alice", "Alice", false, "demo@qq.com")
+            ));
+
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username":"alice",
+                      "password":"secret123",
+                      "displayName":"Alice",
+                      "email":"demo@qq.com",
+                      "code":"123456"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code", is(200)))
+            .andExpect(jsonPath("$.data.user.email", is("demo@qq.com")));
+
+        verify(authService).register(argThat(request ->
+            "demo@qq.com".equals(request.email()) && "123456".equals(request.code())
+        ));
     }
 
     @Test

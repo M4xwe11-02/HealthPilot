@@ -13,6 +13,7 @@ import health.guardian.modules.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -30,6 +31,7 @@ public class AuthService {
     private final AuthSessionRepository sessionRepository;
     private final OwnershipMigrationService ownershipMigrationService;
     private final EmailAccountMergeService emailAccountMergeService;
+    private final EmailVerificationService emailVerificationService;
     private final PasswordHasher passwordHasher;
     private final AuthTokenService tokenService;
     private final Clock clock;
@@ -44,11 +46,15 @@ public class AuthService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "用户名已存在");
         }
 
+        String email = verifyRegistrationEmail(request.email(), request.code());
+        retireConflictingEmailOwner(null, email);
+
         boolean firstUser = userRepository.count() == 0;
         PasswordHasher.PasswordHash passwordHash = passwordHasher.hash(password);
 
         UserEntity user = new UserEntity();
         user.setUsername(username);
+        user.setEmail(email);
         user.setDisplayName(displayName);
         user.setPasswordSalt(passwordHash.salt());
         user.setPasswordHash(passwordHash.hash());
@@ -88,10 +94,7 @@ public class AuthService {
         UserEntity currentUser = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "登录状态已失效，请重新登录"));
 
-        Optional<UserEntity> emailOwner = userRepository.findByEmail(email);
-        if (emailOwner.isPresent() && !emailOwner.get().getId().equals(currentUser.getId())) {
-            emailAccountMergeService.retireEmptyGeneratedAccount(emailOwner.get(), email);
-        }
+        retireConflictingEmailOwner(currentUser.getId(), email);
 
         currentUser.setEmail(email);
         return CurrentUserDTO.from(userRepository.save(currentUser));
@@ -182,5 +185,29 @@ public class AuthService {
             return username;
         }
         return displayName.trim();
+    }
+
+    private String verifyRegistrationEmail(String email, String code) {
+        boolean hasEmail = StringUtils.hasText(email);
+        boolean hasCode = StringUtils.hasText(code);
+        if (!hasEmail && !hasCode) {
+            return null;
+        }
+        if (!hasEmail) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请输入邮箱后再填写验证码");
+        }
+        if (!hasCode) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "填写邮箱后必须输入验证码");
+        }
+        return emailVerificationService.verifyAndConsume(email, code);
+    }
+
+    private void retireConflictingEmailOwner(Long currentUserId, String email) {
+        if (email == null) {
+            return;
+        }
+        userRepository.findByEmail(email)
+            .filter(owner -> currentUserId == null || !owner.getId().equals(currentUserId))
+            .ifPresent(owner -> emailAccountMergeService.retireEmptyGeneratedAccount(owner, email));
     }
 }

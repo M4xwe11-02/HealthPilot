@@ -84,7 +84,13 @@ export default function LoginPage() {
       } else if (mode === 'login') {
         await login({username, password});
       } else {
-        await register({username, password, displayName});
+        const registrationEmail = email.trim();
+        await register({
+          username,
+          password,
+          displayName,
+          ...(registrationEmail ? {email: registrationEmail, code} : {}),
+        });
       }
       navigate(from, {replace: true});
     } catch (err) {
@@ -423,6 +429,59 @@ export default function LoginPage() {
                         autoComplete="name"
                       />
                     </label>
+                  )}
+
+                  {mode === 'register' && (
+                    <div className="space-y-4 sm:space-y-5">
+                      <label className="block">
+                        <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">
+                          邮箱 <span className="font-medium text-slate-400 dark:text-forest-400">（选填）</span>
+                        </span>
+                        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 transition-all duration-300 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:focus-within:border-primary-500 dark:focus-within:bg-forest-800 dark:focus-within:ring-primary-900/20">
+                          <Mail className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-forest-400" />
+                          <input
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            className="h-14 min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400/80 dark:text-white dark:placeholder:text-forest-400"
+                            type="email"
+                            placeholder="用于邮箱验证码登录"
+                            autoComplete="email"
+                          />
+                        </div>
+                      </label>
+
+                      {email.trim() && (
+                        <label className="block">
+                          <span className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">邮箱验证码</span>
+                          <div className="mt-2 flex gap-2">
+                            <div className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 transition-all duration-300 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary-100 dark:border-forest-600 dark:bg-forest-800/50 dark:focus-within:border-primary-500 dark:focus-within:bg-forest-800 dark:focus-within:ring-primary-900/20">
+                              <ShieldCheck className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-forest-400" />
+                              <input
+                                value={code}
+                                onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="h-14 min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400/80 dark:text-white dark:placeholder:text-forest-400"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                placeholder="6位验证码"
+                                pattern="\d{6}"
+                                required
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSendCode}
+                              disabled={sendingCode || resendSeconds > 0}
+                              className="flex h-14 w-[108px] flex-shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-primary-200 bg-primary-50 px-2 text-sm font-bold text-primary-700 transition-colors hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
+                            >
+                              {sendingCode
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Send className="h-4 w-4" />}
+                              <span>{sendingCode ? '发送中' : resendSeconds > 0 ? `${resendSeconds}s` : '发送'}</span>
+                            </button>
+                          </div>
+                        </label>
+                      )}
+                    </div>
                   )}
 
                   <label className="block">

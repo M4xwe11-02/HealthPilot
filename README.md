@@ -185,6 +185,8 @@ MAIL_SENDER_NAME=Health Guard
 The default policy uses a six-digit code valid for five minutes, a 60-second
 resend cooldown, five sends per email per hour, and five verification attempts.
 Username/password registration and login remain available without an email.
+Registration also accepts an optional email; when provided, its six-digit code
+must be verified and the email is bound to the newly created password account.
 Signed-in users can optionally bind or replace an email from the account menu;
 binding adds email-code login to the same account and does not disable its password.
 

@@ -20,6 +20,8 @@ export interface LoginPayload {
 
 export interface RegisterPayload extends LoginPayload {
   displayName?: string;
+  email?: string;
+  code?: string;
 }
 
 export interface EmailLoginPayload {
