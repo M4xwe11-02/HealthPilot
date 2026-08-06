@@ -9,7 +9,7 @@ import {formatDateOnly} from '../utils/date';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import CodeBlock from '../components/CodeBlock';
 import PageHeader from '../components/PageHeader';
-import {ChevronLeft, ChevronRight, Database, Edit, History, LoaderCircle, MessageSquare, Pin, Plus, Trash2,} from 'lucide-react';
+import {ChevronLeft, ChevronRight, Database, Edit, History, Loader2, LoaderCircle, MessageSquare, Pin, Plus, Trash2,} from 'lucide-react';
 
 interface KnowledgeBaseQueryPageProps {
   onBack: () => void;
@@ -929,9 +929,23 @@ export default function KnowledgeBaseQueryPage({ onBack, onUpload }: KnowledgeBa
                                         <span
                                             className="font-medium text-slate-800 dark:text-white text-xs truncate flex-1">{kb.name}</span>
                                       </div>
-                                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 ml-5">
-                                        {formatFileSize(kb.fileSize)}
-                                        {ragProvider === 'LIGHTRAG' && ` · ${getLightRagStatusText(kb)}`}
+                                      <p
+                                        className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 ml-5 min-h-4 flex items-center gap-1"
+                                        aria-live={ragProvider === 'LIGHTRAG' ? 'polite' : undefined}
+                                      >
+                                        <span>{formatFileSize(kb.fileSize)}</span>
+                                        {ragProvider === 'LIGHTRAG' && (
+                                          <>
+                                            <span aria-hidden="true">·</span>
+                                            {isLightRagProcessing(kb) && (
+                                              <Loader2
+                                                className="w-3 h-3 flex-shrink-0 animate-spin text-blue-500"
+                                                aria-hidden="true"
+                                              />
+                                            )}
+                                            <span>{getLightRagStatusText(kb)}</span>
+                                          </>
+                                        )}
                                       </p>
                                     </div>
                                   ))}
